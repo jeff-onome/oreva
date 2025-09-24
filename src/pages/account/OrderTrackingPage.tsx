@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Order, OrderStatus, OrderItem } from '../../types';
-import { Package, Truck, Home, CreditCard, Box, User, MapPin, Calendar, Hash } from 'lucide-react';
+import { Package, Truck, Home, CreditCard, User, MapPin, Calendar, Hash } from 'lucide-react';
 import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
