@@ -1,0 +1,342 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { db, storage } from '../../utils/firebase';
+import { SiteSettings, Product, HeroSlide } from '../../types';
+import InputField from '../../components/InputField';
+import Button from '../../components/Button';
+import { useToast } from '../../context/ToastContext';
+import { Loader2, Trash2, Upload } from 'lucide-react';
+
+const snapshotToArray = (snapshot: any) => {
+    const data = snapshot.val();
+    if (data) {
+        return Object.entries(data).map(([id, value]) => ({ ...(value as object), id }));
+    }
+    return [];
+};
+
+const SiteSettingsPage: React.FC = () => {
+    const [settings, setSettings] = useState<Partial<SiteSettings>>({
+        flash_sale: { active: false, title: '', productId: '', endDate: '' },
+        about_page: { title: '', subtitle: '', missionTitle: '', missionContent: '' },
+        hero_slides: [],
+        site_name: { name: 'ORESKY' },
+        contact_info: { email: '', phone: '', address: '', hours: '' },
+        social_links: { github: '', twitter: '', linkedin: '' },
+    });
+    const [products, setProducts] = useState<Pick<Product, 'id' | 'name'>[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState<string | null>(null);
+    const { showToast } = useToast();
+    
+    const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+
+    const fetchPageData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const settingsSnap = await db.ref('site_settings').get();
+            if (settingsSnap.exists()) {
+                const settingsObject = settingsSnap.val();
+                setSettings(settingsObject);
+                setHeroSlides(settingsObject.hero_slides || []);
+            }
+            
+            const productsSnap = await db.ref('products').get();
+            setProducts(snapshotToArray(productsSnap).map((p: any) => ({ id: p.id, name: p.name })));
+
+        } catch(error) {
+            showToast('Could not load site settings.', 'error');
+        }
+        setLoading(false);
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchPageData();
+    }, [fetchPageData]);
+
+    const handleSettingChange = (category: keyof SiteSettings, key: string, value: any) => {
+        setSettings(prev => ({
+            ...prev,
+            [category]: {
+                ...(prev[category] as object || {}),
+                [key]: value,
+            },
+        }));
+    };
+    
+    const handleSave = async (key: keyof SiteSettings, dataToSave: any) => {
+        setIsSaving(key);
+        try {
+            await db.ref('site_settings').update({ [key]: dataToSave });
+            showToast(`${key.replace('_',' ')} settings saved successfully!`, 'success');
+        } catch (error: any) {
+            showToast(`Error saving ${key.replace('_',' ')}: ${error.message}`, 'error');
+        }
+        setIsSaving(null);
+    }
+    
+    // --- Hero Slide Handlers ---
+    const handleSlideChange = (index: number, field: keyof HeroSlide, value: string) => {
+        const newSlides = [...heroSlides];
+        newSlides[index] = { ...newSlides[index], [field]: value };
+        setHeroSlides(newSlides);
+    };
+
+    const handleSlideImageUpload = async (index: number, file: File) => {
+        if (!file) return;
+
+        const filePath = `site_images/hero-slider/${Date.now()}-${file.name}`;
+        const fileRef = storage.ref(filePath);
+        
+        try {
+            const uploadResult = await fileRef.put(file);
+            const downloadURL = await uploadResult.ref.getDownloadURL();
+            handleSlideChange(index, 'imageUrl', downloadURL);
+            showToast('Image uploaded!', 'success');
+        } catch (uploadError: any) {
+             showToast(`Image upload failed: ${uploadError.message}`, 'error');
+        }
+    };
+
+    const addSlide = () => {
+        setHeroSlides([...heroSlides, { imageUrl: '', title: '', subtitle: '' }]);
+    };
+
+    const removeSlide = (index: number) => {
+        setHeroSlides(heroSlides.filter((_, i) => i !== index));
+    };
+
+    if (loading) return <div>Loading settings...</div>;
+
+    return (
+        <div>
+            <h2 className="text-2xl md:text-3xl font-bold mb-6">Site Settings</h2>
+            <div className="space-y-8">
+
+                 {/* General Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">General Settings</h3>
+                    <div className="space-y-4">
+                        <InputField 
+                            id="site-name" 
+                            label="Site Name" 
+                            type="text" 
+                            value={settings.site_name?.name || ''}
+                            onChange={(e) => handleSettingChange('site_name', 'name', e.target.value)}
+                        />
+                    </div>
+                    <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('site_name', settings.site_name)} disabled={isSaving === 'site_name'}>
+                            {isSaving === 'site_name' ? <Loader2 className="animate-spin"/> : 'Save General Settings'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Homepage Hero Slider */}
+                 <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">Homepage Hero Slider</h3>
+                    <div className="space-y-4">
+                        {heroSlides.map((slide, index) => (
+                            <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+                                <div className="space-y-2">
+                                    <img src={slide.imageUrl || 'https://picsum.photos/300/150'} alt="Slide preview" className="w-full h-24 object-cover rounded bg-neutral"/>
+                                    <input 
+                                        type="file" 
+                                        id={`slide-image-${index}`} 
+                                        className="hidden" 
+                                        accept="image/png, image/jpeg, image/webp"
+                                        onChange={(e) => e.target.files && handleSlideImageUpload(index, e.target.files[0])} 
+                                    />
+                                    <label htmlFor={`slide-image-${index}`} className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
+                                        <Upload size={14}/> Change Image
+                                    </label>
+                                </div>
+                                <div className="md:col-span-2 space-y-2">
+                                    <InputField label="Title" id={`slide_title_${index}`} value={slide.title} onChange={(e) => handleSlideChange(index, 'title', e.target.value)} />
+                                    <InputField label="Subtitle" id={`slide_subtitle_${index}`} value={slide.subtitle} onChange={(e) => handleSlideChange(index, 'subtitle', e.target.value)}/>
+                                </div>
+                                <button onClick={() => removeSlide(index)} className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full">
+                                    <Trash2 size={16}/>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4">
+                        <Button type="button" variant="ghost" onClick={addSlide}>+ Add Slide</Button>
+                    </div>
+                    <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('hero_slides', heroSlides)} disabled={isSaving === 'hero_slides'}>
+                            {isSaving === 'hero_slides' ? <Loader2 className="animate-spin"/> : 'Save Slider Settings'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Flash Sale Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">Homepage Flash Sale</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <span className="font-medium">Enable Flash Sale</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={settings.flash_sale?.active || false} 
+                                    onChange={(e) => handleSettingChange('flash_sale', 'active', e.target.checked)}
+                                    className="sr-only peer" 
+                                />
+                                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/50 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+                        <InputField 
+                            id="flash-sale-title" 
+                            label="Sale Title" 
+                            type="text" 
+                            value={settings.flash_sale?.title || ''}
+                            onChange={(e) => handleSettingChange('flash_sale', 'title', e.target.value)}
+                        />
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-1">Featured Product</label>
+                            <select 
+                                value={settings.flash_sale?.productId || ''} 
+                                onChange={(e) => handleSettingChange('flash_sale', 'productId', e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:border-primary focus:ring-primary sm:text-sm"
+                            >
+                                <option value="">Select a product</option>
+                                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                        <InputField 
+                            id="flash-sale-end-date" 
+                            label="Sale End Date" 
+                            type="datetime-local" 
+                            value={settings.flash_sale?.endDate ? settings.flash_sale.endDate.slice(0, 16) : ''}
+                            onChange={(e) => handleSettingChange('flash_sale', 'endDate', new Date(e.target.value).toISOString())}
+                        />
+                    </div>
+                    <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('flash_sale', settings.flash_sale)} disabled={isSaving === 'flash_sale'}>
+                            {isSaving  === 'flash_sale' ? <Loader2 className="animate-spin"/> : 'Save Flash Sale Settings'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* About Page Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">About Page Content</h3>
+                    <div className="space-y-4">
+                        <InputField 
+                            id="about-title" 
+                            label="Page Title" 
+                            type="text" 
+                            value={settings.about_page?.title || ''}
+                            onChange={(e) => handleSettingChange('about_page', 'title', e.target.value)}
+                        />
+                        <InputField 
+                            id="about-subtitle" 
+                            label="Page Subtitle" 
+                            type="text" 
+                            value={settings.about_page?.subtitle || ''}
+                            onChange={(e) => handleSettingChange('about_page', 'subtitle', e.target.value)}
+                        />
+                         <InputField 
+                            id="about-mission-title" 
+                            label="Mission Title" 
+                            type="text" 
+                            value={settings.about_page?.missionTitle || ''}
+                            onChange={(e) => handleSettingChange('about_page', 'missionTitle', e.target.value)}
+                        />
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-1">Mission Content</label>
+                            <textarea
+                                rows={4}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:border-primary focus:ring-primary sm:text-sm"
+                                value={settings.about_page?.missionContent || ''}
+                                onChange={(e) => handleSettingChange('about_page', 'missionContent', e.target.value)}
+                            />
+                        </div>
+                    </div>
+                     <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('about_page', settings.about_page)} disabled={isSaving === 'about_page'}>
+                             {isSaving === 'about_page' ? <Loader2 className="animate-spin"/> : 'Save About Page Content'}
+                        </Button>
+                    </div>
+                </div>
+                
+                {/* Contact Info Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">Contact Information</h3>
+                    <div className="space-y-4">
+                        <InputField 
+                            id="contact-email" 
+                            label="Contact Email" 
+                            type="email" 
+                            value={settings.contact_info?.email || ''}
+                            onChange={(e) => handleSettingChange('contact_info', 'email', e.target.value)}
+                        />
+                        <InputField 
+                            id="contact-phone" 
+                            label="Contact Phone" 
+                            type="tel" 
+                            value={settings.contact_info?.phone || ''}
+                            onChange={(e) => handleSettingChange('contact_info', 'phone', e.target.value)}
+                        />
+                        <InputField 
+                            id="contact-address" 
+                            label="Address" 
+                            type="text" 
+                            value={settings.contact_info?.address || ''}
+                            onChange={(e) => handleSettingChange('contact_info', 'address', e.target.value)}
+                        />
+                        <InputField 
+                            id="contact-hours" 
+                            label="Business Hours" 
+                            type="text" 
+                            value={settings.contact_info?.hours || ''}
+                            onChange={(e) => handleSettingChange('contact_info', 'hours', e.target.value)}
+                        />
+                    </div>
+                     <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('contact_info', settings.contact_info)} disabled={isSaving === 'contact_info'}>
+                             {isSaving === 'contact_info' ? <Loader2 className="animate-spin"/> : 'Save Contact Info'}
+                        </Button>
+                    </div>
+                </div>
+
+                 {/* Social Media Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">Social Media Links</h3>
+                    <div className="space-y-4">
+                        <InputField 
+                            id="social-github" 
+                            label="GitHub URL" 
+                            type="url" 
+                            value={settings.social_links?.github || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'github', e.target.value)}
+                        />
+                         <InputField 
+                            id="social-twitter" 
+                            label="Twitter URL" 
+                            type="url" 
+                            value={settings.social_links?.twitter || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'twitter', e.target.value)}
+                        />
+                         <InputField 
+                            id="social-linkedin" 
+                            label="LinkedIn URL" 
+                            type="url" 
+                            value={settings.social_links?.linkedin || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'linkedin', e.target.value)}
+                        />
+                    </div>
+                     <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('social_links', settings.social_links)} disabled={isSaving === 'social_links'}>
+                             {isSaving === 'social_links' ? <Loader2 className="animate-spin"/> : 'Save Social Links'}
+                        </Button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+};
+
+export default SiteSettingsPage;

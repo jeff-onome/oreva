@@ -1,0 +1,5 @@
+{
+  "name": "ORESKY - Fun & Colorful Ecommerce",
+  "description": "A vibrant, fully-featured ecommerce application built with React and Tailwind CSS. It includes product listings, a shopping cart, checkout, user accounts, and a complete admin dashboard.",
+  "requestFramePermissions": []
+}

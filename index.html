@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <!-- 
+      Content-Security-Policy: Updated for Firebase.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' 'unsafe-inline' https://aistudiocdn.com https://*.firebaseio.com; 
+    style-src 'self' 'unsafe-inline'; 
+    img-src 'self' data: https://ui-avatars.com https://picsum.photos https://fastly.picsum.photos https://firebasestorage.googleapis.com; 
+    connect-src 'self' wss://*.firebaseio.com https://*.firebaseio.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com;
+    font-src 'self';
+    object-src 'none';
+    form-action 'self';
+    frame-src https://*.firebaseio.com;
+    ">
+
+    <title>ORESKY - Fun & Colorful Ecommerce</title>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.1.1/client",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js",
+    "firebase/storage": "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4",
+    "vite": "https://aistudiocdn.com/vite@^7.1.6"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

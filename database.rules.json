@@ -1,0 +1,78 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "products": {
+      ".read": true,
+      ".write": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "featured",
+        "stock"
+      ]
+    },
+    "categories": {
+      ".read": true,
+      ".write": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "name"
+      ]
+    },
+    "site_settings": {
+      ".read": true,
+      ".write": "root.child('users').child(auth.uid).child('isAdmin').val() === true"
+    },
+    "coupons": {
+      ".read": true,
+      ".write": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "code",
+        "createdAt"
+      ]
+    },
+    "users": {
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('isAdmin').val() === true",
+        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('isAdmin').val() === true",
+        "wishlist": {
+          ".indexOn": "productId"
+        }
+      }
+    },
+    "orders": {
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "userId",
+        "createdAt"
+      ],
+      "$orderId": {
+        ".read": "data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('isAdmin').val() === true",
+        ".write": "(!data.exists() && newData.child('userId').val() === auth.uid) || root.child('users').child(auth.uid).child('isAdmin').val() === true"
+      }
+    },
+    "reviews": {
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "productId",
+        "is_approved",
+        "createdAt",
+        "userId"
+      ],
+      "$reviewId": {
+        ".read": "data.child('is_approved').val() === true || root.child('users').child(auth.uid).child('isAdmin').val() === true || data.child('userId').val() === auth.uid",
+        ".write": "(!data.exists() && newData.child('userId').val() === auth.uid) || root.child('users').child(auth.uid).child('isAdmin').val() === true"
+      }
+    },
+    "supportTickets": {
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".indexOn": [
+        "userId",
+        "createdAt"
+      ],
+      "$ticketId": {
+        ".read": "data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('isAdmin').val() === true",
+        ".write": "(!data.exists() && newData.child('userId').val() === auth.uid) || root.child('users').child(auth.uid).child('isAdmin').val() === true"
+      }
+    }
+  }
+}
