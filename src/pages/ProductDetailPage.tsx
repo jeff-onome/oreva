@@ -290,7 +290,7 @@ const ProductDetailPage: React.FC = () => {
                 <Star key={i} size={20} fill={i < Math.round(product.rating) ? 'currentColor' : 'none'} />
               ))}
             </div>
-            <span className="text-text-secondary">{product.rating.toFixed(1)} stars ({reviews.length} reviews)</span>
+            <span className="text-text-secondary">{(product.rating || 0).toFixed(1)} stars ({reviews.length} reviews)</span>
           </div>
           <p className="text-text-secondary text-lg leading-relaxed mb-6">{product.description}</p>
           
