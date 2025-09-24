@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Trash2, Loader2, CreditCard } from 'lucide-react';
+import { Plus, X, Trash2, Loader2 } from 'lucide-react';
 import Button from '../../components/Button';
 import InputField from '../../components/InputField';
 import { useAuth } from '../../context/AuthContext';
@@ -54,7 +54,6 @@ const PaymentMethodModal: React.FC<{ onClose: () => void; onSave: () => void; }>
         };
 
         try {
-            // FIX: Use v8 Realtime Database syntax instead of Firestore
             await db.ref(`users/${user.id}/paymentMethods`).push(payload);
             showToast('Payment method saved!', 'success');
             onSave();
@@ -94,55 +93,55 @@ const PaymentMethodModal: React.FC<{ onClose: () => void; onSave: () => void; }>
 const PaymentMethodsPage: React.FC = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
-    const [methods, setMethods] = useState<PaymentMethod[]>([]);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-
-    const fetchMethods = useCallback(async () => {
-        if(!user) return;
+    
+    const fetchPaymentMethods = useCallback(async () => {
+        if (!user) return;
         setLoading(true);
         try {
-            // FIX: Use v8 Realtime Database syntax instead of Firestore
-            const q = db.ref(`users/${user.id}/paymentMethods`).orderByChild('createdAt');
+            const methodsRef = db.ref(`users/${user.id}/paymentMethods`);
+            const q = methodsRef.orderByChild('createdAt');
             const snapshot = await q.get();
-            const methodsData = snapshotToArray(snapshot).sort((a:any, b:any) => b.createdAt - a.createdAt);
-            setMethods(methodsData as PaymentMethod[]);
+            setPaymentMethods(snapshotToArray(snapshot) as PaymentMethod[]);
         } catch (error) {
             showToast('Could not load payment methods', 'error');
         }
         setLoading(false);
     }, [user, showToast]);
-
+    
     useEffect(() => {
-        fetchMethods();
-    }, [fetchMethods]);
-
+        fetchPaymentMethods();
+    }, [fetchPaymentMethods]);
+    
     const handleDelete = async (methodId: string) => {
-        if (window.confirm('Are you sure you want to remove this card?')) {
+        if (window.confirm('Are you sure you want to delete this card?')) {
             if(!user) return;
             try {
-                // FIX: Use v8 Realtime Database syntax instead of Firestore
                 await db.ref(`users/${user.id}/paymentMethods/${methodId}`).remove();
-                showToast('Card removed', 'success');
-                fetchMethods();
-            } catch (error) {
-                showToast('Failed to remove card.', 'error');
+                showToast('Card deleted', 'success');
+                fetchPaymentMethods();
+            } catch(error) {
+                 showToast('Failed to delete card', 'error');
             }
         }
-    }
-
+    };
+    
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Payment Methods</h2>
                 <Button variant="secondary" size="sm" className="flex items-center gap-2" onClick={() => setIsModalOpen(true)}>
-                    <Plus size={16} /> Add New Card
+                    <Plus size={16} /> Add Card
                 </Button>
             </div>
-             {loading ? <p>Loading cards...</p> : (
-                methods.length > 0 ? (
+            {loading ? <p>Loading cards...</p> : (
+                paymentMethods.length === 0 ? (
+                    <p>No payment methods saved.</p>
+                ) : (
                     <div className="space-y-4">
-                        {methods.map(method => (
+                        {paymentMethods.map(method => (
                             <div key={method.id} className="p-4 border rounded-lg flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                     {method.card_type === 'Visa' ? visaIcon : mastercardIcon}
@@ -151,18 +150,13 @@ const PaymentMethodsPage: React.FC = () => {
                                         <p className="text-sm text-text-secondary">Expires {String(method.expiry_month).padStart(2,'0')}/{String(method.expiry_year).slice(-2)}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    {method.is_default && <span className="text-xs font-bold uppercase text-accent bg-accent/10 px-2 py-1 rounded-full">Default</span>}
-                                    <button onClick={() => handleDelete(method.id)} className="text-sm font-medium text-red-500 hover:underline flex items-center gap-1"><Trash2 size={14}/> Remove</button>
-                                </div>
+                                <button onClick={() => handleDelete(method.id)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
                             </div>
                         ))}
                     </div>
-                ) : (
-                     <p className="text-text-secondary text-center p-8 border rounded-lg">You have no saved payment methods.</p>
                 )
             )}
-            {isModalOpen && <PaymentMethodModal onClose={() => setIsModalOpen(false)} onSave={fetchMethods} />}
+            {isModalOpen && <PaymentMethodModal onClose={() => setIsModalOpen(false)} onSave={fetchPaymentMethods} />}
         </div>
     );
 };

@@ -4,7 +4,7 @@ import { ArrowRight, Gift, Package, ShieldCheck, ChevronLeft, ChevronRight, Zap,
 import Button from '../components/Button';
 import ProductCard from '../components/ProductCard';
 import { db } from '../utils/firebase';
-import { Product, Category, FlashSale, HeroSlide } from '../types';
+import { Product, Category, FlashSale } from '../types';
 import { formatNaira } from '../utils/formatters';
 import { useSiteSettings } from '../context/SiteSettingsContext';
 import Spinner from '../components/Spinner';
