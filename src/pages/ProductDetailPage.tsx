@@ -205,8 +205,14 @@ const ProductDetailPage: React.FC = () => {
       }
   }
 
-  const nextImage = () => product && setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
-  const prevImage = () => product && setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+  const nextImage = () => {
+    if (!product || !product.images || product.images.length === 0) return;
+    setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+  };
+  const prevImage = () => {
+    if (!product || !product.images || product.images.length === 0) return;
+    setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+  };
   const incrementQuantity = () => product && quantity < product.stock && setQuantity(q => q + 1);
   const decrementQuantity = () => quantity > 1 && setQuantity(q => q - 1);
 
@@ -243,11 +249,11 @@ const ProductDetailPage: React.FC = () => {
           <div className="relative bg-base rounded-xl shadow-lg overflow-hidden mb-4">
             <img 
               key={currentImageIndex}
-              src={product.images[currentImageIndex] || 'https://picsum.photos/seed/product/800/600'} 
+              src={product.images?.[currentImageIndex] || 'https://picsum.photos/seed/product/800/600'} 
               alt={product.name} 
               className="w-full h-96 object-cover animate-fade-in" 
             />
-            {product.images.length > 1 && (
+            {product.images && product.images.length > 1 && (
               <>
                 <button onClick={prevImage} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all">
                   <ChevronLeft size={24} />
@@ -259,7 +265,7 @@ const ProductDetailPage: React.FC = () => {
             )}
           </div>
           <div className="flex gap-4">
-            {product.images.map((img, index) => (
+            {product.images?.map((img, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentImageIndex(index)}
