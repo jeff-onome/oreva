@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { db, storage } from '../../utils/firebase';
+import { Product, Category } from '../../types';
 import Button from '../../components/Button';
-import InputField from '../../components/InputField';
-import { useAuth } from '../../context/AuthContext';
+import { Plus, Edit, Trash2, Loader2, Search, X, Upload } from 'lucide-react';
+import { formatNaira } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
-// FIX: Use firebase v9 compat libraries to support v8 syntax for ServerValue.TIMESTAMP.
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/database';
-import { db } from '../../utils/firebase';
-import { PaymentMethod } from '../../types';
+import InputField from '../../components/InputField';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -18,70 +15,286 @@ const snapshotToArray = (snapshot: any) => {
     return [];
 };
 
+const ProductManagementPage: React.FC = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { showToast } = useToast();
 
-const visaIcon = (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="5" width="20" height="14" rx="2" fill="#4285F4"/>
-        <path d="M7 15h1.5l1-4.5h-1.5z" fill="#FFFFFF"/>
-        <path d="M15.5 15H17l-1.5-6h-1.5z" fill="#F4B400"/>
-    </svg>
-);
-const mastercardIcon = (
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="10" cy="12" r="6" fill="#EA4335"/>
-        <circle cx="14" cy="12" r="6" fill="#F4B400" opacity="0.8"/>
-    </svg>
-);
+  const fetchPageData = useCallback(async () => {
+    setLoading(true);
+    try {
+        const [productsSnap, categoriesSnap] = await Promise.all([
+            db.ref('products').get(),
+            db.ref('categories').get()
+        ]);
+        setProducts(snapshotToArray(productsSnap) as Product[]);
+        setCategories(snapshotToArray(categoriesSnap) as Category[]);
+    } catch (error) {
+        showToast('Error fetching page data', 'error');
+    } finally {
+        setLoading(false);
+    }
+  }, [showToast]);
 
-const PaymentMethodModal: React.FC<{ onClose: () => void; onSave: () => void; }> = ({ onClose, onSave }) => {
-    const { user } = useAuth();
-    const { showToast } = useToast();
+  useEffect(() => {
+    fetchPageData();
+  }, [fetchPageData]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.categories?.some(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [products, searchTerm]);
+
+  const handleAddProduct = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
+      try {
+        if (product.images && product.images.length > 0) {
+            for (const imageUrl of product.images) {
+                try {
+                    const imageRef = storage.refFromURL(imageUrl);
+                    await imageRef.delete();
+                } catch (storageError: any) {
+                    if (storageError.code !== 'storage/object-not-found') {
+                        console.warn(`Could not delete image ${imageUrl}:`, storageError);
+                    }
+                }
+            }
+        }
+        
+        await db.ref('products/' + product.id).remove();
+        showToast('Product deleted successfully', 'success');
+        fetchPageData();
+      } catch (error) {
+          showToast(`Error deleting product`, 'error');
+          console.error("Delete error:", error);
+      }
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h2 className="text-2xl md:text-3xl font-bold">Manage Products</h2>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="relative w-full md:w-64">
+                <InputField 
+                    id="search-products"
+                    name="search-products"
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    label=''
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            </div>
+            <Button variant="secondary" className="flex items-center gap-2" onClick={handleAddProduct}>
+              <Plus size={18} /> <span className="hidden sm:inline">Add Product</span>
+            </Button>
+        </div>
+      </div>
+
+      <div className="bg-base overflow-x-auto rounded-lg shadow">
+        {loading ? <p className="p-6">Loading products...</p> : (
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3">Product Name</th>
+                  <th scope="col" className="px-6 py-3">Category</th>
+                  <th scope="col" className="px-6 py-3">Price</th>
+                  <th scope="col" className="px-6 py-3">Stock</th>
+                  <th scope="col" className="px-6 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map(product => (
+                  <tr key={product.id} className="bg-white border-b hover:bg-gray-50">
+                    <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap flex items-center gap-3">
+                      <img src={product.images?.[0] || 'https://picsum.photos/40'} alt={product.name} className="w-10 h-10 rounded-md object-cover"/>
+                      {product.name}
+                    </th>
+                    <td className="px-6 py-4">{product.categories?.map(c => c.name).join(', ') || 'N/A'}</td>
+                    <td className="px-6 py-4 font-semibold">{formatNaira(product.price)}</td>
+                    <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.stock > 10 ? 'bg-green-100 text-green-800' : product.stock > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                            {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                        </span>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <button onClick={() => handleEditProduct(product)} className="p-2 text-primary hover:bg-neutral rounded-full"><Edit size={16} /></button>
+                      <button onClick={() => handleDeleteProduct(product)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <ProductModal 
+          product={editingProduct} 
+          categories={categories}
+          onClose={() => setIsModalOpen(false)} 
+          onSave={fetchPageData} 
+        />
+      )}
+    </div>
+  );
+};
+
+// Product Modal Form Component
+const ProductModal: React.FC<{ product: Product | null, categories: Category[], onClose: () => void, onSave: () => void }> = ({ product, categories, onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+        name: product?.name || '',
+        description: product?.description || '',
+        price: product?.price || 0,
+        sale_price: product?.sale_price || null,
+        stock: product?.stock || 0,
+        rating: product?.rating || 0,
+        reviews: product?.reviews || 0,
+        featured: (product as any)?.featured || false,
+    });
+    const [selectedCategories, setSelectedCategories] = useState<Category[]>(product?.categories || []);
+    const [existingImages] = useState<string[]>(product?.images || []);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { showToast } = useToast();
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        if (type === 'checkbox') {
+            setFormData(prev => ({...prev, [name]: (e.target as HTMLInputElement).checked}));
+            return;
+        }
+        const parsedValue = name === 'price' || name === 'sale_price' || name === 'stock' || name === 'rating' || name === 'reviews' ? (value ? parseFloat(value) : null) : value;
+        setFormData(prev => ({ ...prev, [name]: parsedValue }));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            setImageFiles(Array.from(e.target.files));
+        }
+    };
+
+    const handleCategoryToggle = (category: Category) => {
+        setSelectedCategories(prev =>
+            prev.find(c => c.id === category.id)
+                ? prev.filter(c => c.id !== category.id)
+                : [...prev, category]
+        );
+    };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if(!user) return;
         setIsSubmitting(true);
-        const formData = new FormData(e.target as HTMLFormElement);
-        const cardNumber = (formData.get('cardNumber') as string).replace(/\s/g, '');
-
-        const payload = {
-            card_type: cardNumber.startsWith('4') ? 'Visa' : 'Mastercard',
-            last4: cardNumber.slice(-4),
-            expiry_month: parseInt((formData.get('expiry') as string).split('/')[0].trim()),
-            expiry_year: 2000 + parseInt((formData.get('expiry') as string).split('/')[1].trim()),
-            createdAt: firebase.database.ServerValue.TIMESTAMP
-        };
 
         try {
-            await db.ref(`users/${user.id}/paymentMethods`).push(payload);
-            showToast('Payment method saved!', 'success');
+            let imageUrls = [...existingImages];
+            if (imageFiles.length > 0) {
+                for (const file of imageFiles) {
+                    const filePath = `product_images/${Date.now()}-${file.name}`;
+                    const fileRef = storage.ref(filePath);
+                    const uploadResult = await fileRef.put(file);
+                    const downloadURL = await uploadResult.ref.getDownloadURL();
+                    imageUrls.push(downloadURL);
+                }
+            }
+
+            const productPayload = { 
+                ...formData, 
+                images: imageUrls,
+                categories: selectedCategories
+            };
+
+            if (product) { // Editing
+                await db.ref('products/' + product.id).update(productPayload);
+                showToast('Product updated successfully', 'success');
+            } else { // Creating
+                await db.ref('products').push(productPayload);
+                showToast('Product created successfully', 'success');
+            }
             onSave();
             onClose();
+
         } catch (error) {
-            showToast('Failed to save card.', 'error');
+            showToast('Failed to save product.', 'error');
+            console.error("Product save error: ", error);
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsSubmitting(false);
-    }
-    
+    };
+
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-base rounded-lg shadow-xl w-full max-w-md">
-                <div className="p-6 border-b flex justify-between items-center">
-                    <h3 className="text-xl font-bold">Add New Card</h3>
+            <div className="bg-base rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b flex justify-between items-center sticky top-0 bg-base">
+                    <h3 className="text-xl font-bold">{product ? 'Edit Product' : 'Add New Product'}</h3>
                     <button onClick={onClose}><X /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <InputField id="cardName" name="cardName" label="Name on Card" required />
-                    <InputField id="cardNumber" name="cardNumber" label="Card Number" placeholder="•••• •••• •••• ••••" required />
+                    <InputField id="name" name="name" label="Product Name" value={formData.name} onChange={handleInputChange} required />
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Description</label>
+                        <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:border-primary focus:ring-primary sm:text-sm" />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <InputField id="expiry" name="expiry" label="Expiry (MM/YY)" placeholder="MM / YY" required />
-                        <InputField id="cvc" name="cvc" label="CVC" placeholder="123" required />
+                        <InputField id="price" name="price" label="Price" type="number" step="0.01" value={String(formData.price)} onChange={handleInputChange} required />
+                        <InputField id="sale_price" name="sale_price" label="Sale Price (Optional)" type="number" step="0.01" value={String(formData.sale_price ?? '')} onChange={handleInputChange} />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Categories</label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 border rounded-md max-h-32 overflow-y-auto">
+                            {categories.map(cat => (
+                                <label key={cat.id} className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!selectedCategories.find(c => c.id === cat.id)}
+                                        onChange={() => handleCategoryToggle(cat)}
+                                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                    />
+                                    <span>{cat.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                    <InputField id="stock" name="stock" label="Stock" type="number" value={String(formData.stock)} onChange={handleInputChange} required />
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Product Images</label>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                            {existingImages.map(url => <img key={url} src={url} className="w-16 h-16 object-cover rounded"/>)}
+                        </div>
+                        <label htmlFor="image-upload" className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer flex items-center justify-center gap-2 border border-dashed p-4 rounded-md">
+                            <Upload size={16} />
+                            <span>{imageFiles.length > 0 ? `${imageFiles.length} files selected` : 'Upload Images'}</span>
+                        </label>
+                        <input type="file" id="image-upload" multiple onChange={handleFileChange} className="hidden"/>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <input type="checkbox" id="featured" name="featured" checked={formData.featured} onChange={handleInputChange} className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded" />
+                        <label htmlFor="featured" className="text-sm font-medium text-text-secondary">Feature on Homepage</label>
                     </div>
                     <div className="pt-4 flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
                         <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Save Card'}
+                            {isSubmitting ? <Loader2 className="animate-spin"/> : 'Save Product'}
                         </Button>
                     </div>
                 </form>
@@ -90,75 +303,4 @@ const PaymentMethodModal: React.FC<{ onClose: () => void; onSave: () => void; }>
     );
 };
 
-const PaymentMethodsPage: React.FC = () => {
-    const { user } = useAuth();
-    const { showToast } = useToast();
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    const fetchPaymentMethods = useCallback(async () => {
-        if (!user) return;
-        setLoading(true);
-        try {
-            const methodsRef = db.ref(`users/${user.id}/paymentMethods`);
-            const q = methodsRef.orderByChild('createdAt');
-            const snapshot = await q.get();
-            setPaymentMethods(snapshotToArray(snapshot) as PaymentMethod[]);
-        } catch (error) {
-            showToast('Could not load payment methods', 'error');
-        }
-        setLoading(false);
-    }, [user, showToast]);
-    
-    useEffect(() => {
-        fetchPaymentMethods();
-    }, [fetchPaymentMethods]);
-    
-    const handleDelete = async (methodId: string) => {
-        if (window.confirm('Are you sure you want to delete this card?')) {
-            if(!user) return;
-            try {
-                await db.ref(`users/${user.id}/paymentMethods/${methodId}`).remove();
-                showToast('Card deleted', 'success');
-                fetchPaymentMethods();
-            } catch(error) {
-                 showToast('Failed to delete card', 'error');
-            }
-        }
-    };
-    
-    return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Payment Methods</h2>
-                <Button variant="secondary" size="sm" className="flex items-center gap-2" onClick={() => setIsModalOpen(true)}>
-                    <Plus size={16} /> Add Card
-                </Button>
-            </div>
-            {loading ? <p>Loading cards...</p> : (
-                paymentMethods.length === 0 ? (
-                    <p>No payment methods saved.</p>
-                ) : (
-                    <div className="space-y-4">
-                        {paymentMethods.map(method => (
-                            <div key={method.id} className="p-4 border rounded-lg flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    {method.card_type === 'Visa' ? visaIcon : mastercardIcon}
-                                    <div>
-                                        <p className="font-semibold">{method.card_type} ending in {method.last4}</p>
-                                        <p className="text-sm text-text-secondary">Expires {String(method.expiry_month).padStart(2,'0')}/{String(method.expiry_year).slice(-2)}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => handleDelete(method.id)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
-                            </div>
-                        ))}
-                    </div>
-                )
-            )}
-            {isModalOpen && <PaymentMethodModal onClose={() => setIsModalOpen(false)} onSave={fetchPaymentMethods} />}
-        </div>
-    );
-};
-
-export default PaymentMethodsPage;
+export default ProductManagementPage;

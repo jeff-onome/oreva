@@ -83,7 +83,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone: profileData.phone || '',
         country: profileData.country || '',
         profilePictureUrl: profileData.profilePictureUrl || '',
-        emailVerified: undefined
       };
       
       if (isMounted.current) {
