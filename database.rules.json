@@ -1,3 +1,4 @@
+
 {
   "rules": {
     ".read": false,
@@ -40,7 +41,7 @@
       }
     },
     "orders": {
-      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true || (auth != null && query.orderByChild === 'userId' && query.equalTo === auth.uid)",
       ".indexOn": [
         "userId",
         "createdAt"
@@ -51,7 +52,7 @@
       }
     },
     "reviews": {
-      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true",
+      ".read": "root.child('users').child(auth.uid).child('isAdmin').val() === true || query.orderByChild === 'productId' || (auth != null && query.orderByChild === 'userId' && query.equalTo === auth.uid)",
       ".indexOn": [
         "productId",
         "is_approved",
