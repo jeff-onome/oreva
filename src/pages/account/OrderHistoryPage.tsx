@@ -1,203 +1,137 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Order, OrderStatus, OrderItem } from '../../types';
-import { Package, Truck, Home, CreditCard, User, MapPin, Calendar, Hash } from 'lucide-react';
-import { db } from '../../utils/firebase';
+import { Truck, CheckCircle, Clock, Repeat, Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import Button from '../../components/Button';
 import { formatNaira } from '../../utils/formatters';
+import { db } from '../../utils/firebase';
 import Spinner from '../../components/Spinner';
 
-const OrderTrackingPage: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const { showToast } = useToast();
-    const [order, setOrder] = useState<Order | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [isUpdating, setIsUpdating] = useState(false);
+const getStatusStyles = (status: OrderStatus) => {
+    switch (status) {
+        case OrderStatus.Delivered:
+            return { icon: <CheckCircle className="text-green-500" />, text: 'text-green-600', bg: 'bg-green-100' };
+        case OrderStatus.Shipped:
+            return { icon: <Truck className="text-blue-500" />, text: 'text-blue-600', bg: 'bg-blue-100' };
+        case OrderStatus.Processing:
+            return { icon: <Clock className="text-yellow-500" />, text: 'text-yellow-600', bg: 'bg-yellow-100' };
+        default:
+            return { icon: <Clock className="text-slate-500" />, text: 'text-slate-600', bg: 'bg-slate-100' };
+    }
+};
 
-    const fetchOrder = useCallback(async () => {
-        if (!id || !user) return;
+const OrderHistoryPage: React.FC = () => {
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
+    
+    const fetchOrders = useCallback(async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
+        setError(null);
 
         try {
-            const orderRef = db.ref('orders/' + id);
-            const orderSnap = await orderRef.get();
-
-            if (!orderSnap.exists() || (orderSnap.val().userId !== user.id && !user.isAdmin)) {
-                showToast('Order not found or you do not have permission to view it.', 'error');
-                navigate('/account/orders');
-                return;
+            const ordersRef = db.ref('orders');
+            const ordersQuery = ordersRef.orderByChild('userId').equalTo(user.id);
+            const snapshot = await ordersQuery.get();
+            
+            if (snapshot.exists()) {
+                const ordersData = snapshot.val();
+                const fetchedOrders = Object.entries(ordersData).map(([id, value]) => ({
+                    id,
+                    ...(value as Omit<Order, 'id'>)
+                })).sort((a, b) => b.createdAt - a.createdAt);
+                setOrders(fetchedOrders);
+            } else {
+                setOrders([]);
             }
-
-            const orderData = orderSnap.val();
-            setOrder({
-                id: orderSnap.key!,
-                ...orderData,
-            } as Order);
-
-        } catch (err) {
-            console.error("Error fetching order:", err);
-            showToast('Failed to load order details.', 'error');
+        } catch (err: any) {
+            console.error("Error fetching orders:", err);
+            setError("Could not load your orders at this time. Please try again later.");
         } finally {
             setLoading(false);
         }
-      }, [id, user, navigate, showToast]);
+    }, [user]);
 
     useEffect(() => {
-      fetchOrder();
-    }, [fetchOrder]);
+        fetchOrders();
+    }, [fetchOrders]);
 
-    const handleStatusChange = async (newStatus: OrderStatus) => {
-        if (!order) return;
-        setIsUpdating(true);
-        const orderRef = db.ref('orders/' + order.id);
-        try {
-            await orderRef.update({ status: newStatus });
-            showToast('Order status updated successfully', 'success');
-            setOrder({ ...order, status: newStatus }); // Optimistic update
-        } catch (error) {
-             showToast('Failed to update order status.', 'error');
-        } finally {
-            setIsUpdating(false);
-        }
+
+    const handleReorder = (items: OrderItem[]) => {
+        // This is a simplified reorder.
+        console.log(`TODO: Re-add products to cart`);
+        alert("Re-order functionality is a demo. It would require fetching latest product info.");
     };
-
+    
     if (loading) {
-      return <div className="flex justify-center py-20"><Spinner /></div>;
+        return <div className="flex justify-center py-10"><Spinner /></div>;
     }
 
-    if (!order) {
-        return <div className="text-center py-20">Order not found.</div>;
+    if (error) {
+        return <div className="text-center text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>;
     }
-    
-    const trackingSteps = [
-      { status: OrderStatus.Processing, label: 'Order Placed', icon: <Package/> },
-      { status: OrderStatus.Shipped, label: 'Shipped', icon: <Truck/> },
-      { status: OrderStatus.Delivered, label: 'Delivered', icon: <Home/> },
-    ];
-    
-    const currentStatus = order.status === OrderStatus.Pending ? OrderStatus.Processing : order.status;
-    let currentStepIndex = trackingSteps.findIndex(step => step.status === currentStatus);
-    if(order.status === OrderStatus.Cancelled) currentStepIndex = -1;
 
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            <div className="flex justify-between items-center mb-6">
-                <Link to={user?.isAdmin ? "/admin/orders" : "/account/orders"} className="text-primary hover:underline font-semibold">&larr; Back to Orders</Link>
-                <span className="text-sm text-text-secondary">Order placed on {new Date(order.createdAt).toLocaleString()}</span>
-            </div>
-            <h1 className="text-3xl font-bold mb-4">Order Details</h1>
-            <h2 className="text-lg text-text-secondary mb-8">Order ID: <span className="font-mono">{order.id}</span></h2>
-
-             {/* Main grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left/Main Column */}
-                <div className="lg:col-span-2 space-y-8">
-                     {/* Status Tracking */}
-                     {order.status !== OrderStatus.Cancelled && !user?.isAdmin && (
-                         <div className="p-6 bg-base rounded-xl shadow-lg">
-                            <h3 className="text-xl font-bold mb-6">Order Status</h3>
-                            <div className="flex justify-between items-start relative">
-                                <div className="absolute left-0 top-6 w-full h-1 bg-slate-200 -translate-y-1/2">
-                                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${(currentStepIndex / (trackingSteps.length - 1)) * 100}%` }}></div>
-                                </div>
-                                {trackingSteps.map((step, index) => {
-                                    const isCompleted = index <= currentStepIndex;
-                                    return (
-                                        <div key={step.status} className="z-10 text-center w-1/3">
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto transition-colors duration-300 ${isCompleted ? 'bg-primary text-white' : 'bg-slate-200 text-slate-500'}`}>
-                                               {step.icon}
-                                            </div>
-                                            <p className={`mt-2 font-semibold ${isCompleted ? 'text-primary' : 'text-slate-500'}`}>{step.label}</p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Order Items */}
-                    <div className="p-6 bg-base rounded-xl shadow-lg">
-                        <h3 className="text-xl font-bold mb-4">Items in this order ({order.items.length})</h3>
-                        <div className="space-y-4">
-                            {order.items.map((item: OrderItem) => (
-                                <div key={item.id} className="flex items-center gap-4 border-b pb-4 last:border-0 last:pb-0">
-                                <img src={item.image || 'https://picsum.photos/64'} alt={item.name} className="w-16 h-16 rounded-md object-cover"/>
-                                <div className="flex-grow">
-                                    <p className="font-semibold">{item.name}</p>
-                                    <p className="text-sm text-text-secondary">Qty: {item.quantity} &times; {formatNaira(item.price)}</p>
-                                </div>
-                                <p className="font-semibold">{formatNaira(item.price * item.quantity)}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+        <div>
+            <h2 className="text-2xl font-bold mb-6">Order History</h2>
+            {orders.length === 0 ? (
+                <div className="text-center py-16 border rounded-lg">
+                    <Package size={48} className="mx-auto text-slate-300 mb-4" />
+                    <h3 className="text-xl font-semibold">No Orders Yet</h3>
+                    <p className="text-text-secondary mt-2">You haven't placed any orders yet. Let's change that!</p>
+                    <Button variant="secondary" className="mt-6">
+                        <Link to="/products">Start Shopping</Link>
+                    </Button>
                 </div>
-
-                {/* Right/Sidebar Column */}
-                <div className="space-y-8">
-                     {/* Order Summary */}
-                    <div className="p-6 bg-base rounded-xl shadow-lg space-y-4">
-                         <h3 className="text-xl font-bold border-b pb-3 mb-3">Order Summary</h3>
-                         <div className="flex items-center justify-between">
-                            <span className="font-semibold flex items-center gap-2"><Hash size={16}/> Order Status</span>
-                            {user?.isAdmin ? (
-                                <select
-                                    value={order.status}
-                                    onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
-                                    className="p-1 rounded-md border-gray-300 text-sm focus:ring-primary focus:border-primary"
-                                    disabled={isUpdating}
-                                >
-                                    {Object.values(OrderStatus).map(status => (
-                                        <option key={status} value={status}>{status}</option>
+            ) : (
+                <div className="space-y-6">
+                    {orders.map((order) => {
+                        const statusStyle = getStatusStyles(order.status);
+                        return (
+                            <div key={order.id} className="border rounded-lg p-4 transition-shadow hover:shadow-md">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                                    <div>
+                                        <h3 className="font-bold text-lg">Order #{order.id.substring(0,8)}...</h3>
+                                        <p className="text-sm text-text-secondary">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${statusStyle.bg} ${statusStyle.text}`}>
+                                        {statusStyle.icon}
+                                        {order.status}
+                                    </div>
+                                </div>
+                                <div className="flex -space-x-4 mb-4">
+                                    {order.items.slice(0, 5).map(item => (
+                                        <img key={item.id} src={item.image || 'https://picsum.photos/48'} alt={item.name} className="w-12 h-12 object-cover rounded-full border-2 border-white"/>
                                     ))}
-                                </select>
-                            ) : (
-                                <span className="font-semibold text-primary">{order.status}</span>
-                            )}
-                         </div>
-                         <div className="flex items-center justify-between">
-                            <span className="font-semibold flex items-center gap-2"><CreditCard size={16}/> Payment Method</span>
-                            <span className="capitalize">{order.paymentMethod}</span>
-                         </div>
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold flex items-center gap-2"><Calendar size={16}/> Date Placed</span>
-                            <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                         </div>
-                    </div>
-                     {/* Totals */}
-                    <div className="p-6 bg-base rounded-xl shadow-lg space-y-3">
-                        <div className="flex justify-between">
-                            <span className="text-text-secondary">Subtotal</span>
-                            <span className="font-semibold">{formatNaira(order.subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-text-secondary">Shipping</span>
-                            <span className="font-semibold text-accent">FREE</span>
-                        </div>
-                        <div className="flex justify-between text-xl font-bold border-t pt-3 mt-2">
-                            <span>Total</span>
-                            <span>{formatNaira(order.total)}</span>
-                        </div>
-                    </div>
-                     {/* Customer & Shipping */}
-                     <div className="p-6 bg-base rounded-xl shadow-lg space-y-4">
-                        <h3 className="text-xl font-bold flex items-center gap-2"><User size={20}/> Customer</h3>
-                        <p>{order.shippingAddress.firstName} {order.shippingAddress.lastName}</p>
-                        <div className="border-t pt-4 mt-4">
-                            <h3 className="text-xl font-bold flex items-center gap-2"><MapPin size={20}/> Shipping Address</h3>
-                            <address className="not-italic mt-2">
-                                <p>{order.shippingAddress.address}</p>
-                                <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</p>
-                            </address>
-                        </div>
-                     </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                    <p className="font-bold text-lg">Total: {formatNaira(order.total)}</p>
+                                    <div className="flex items-center gap-4 mt-2 sm:mt-0">
+                                        <Button variant="ghost" size="sm" onClick={() => handleReorder(order.items)}>
+                                            <Repeat size={16} className="mr-2" />
+                                            Reorder
+                                        </Button>
+                                        <Link 
+                                          to={`/account/orders/${order.id}`}
+                                          className="text-primary font-semibold hover:underline"
+                                        >
+                                          View Details
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
-export default OrderTrackingPage;
+export default OrderHistoryPage;

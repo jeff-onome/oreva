@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -165,7 +166,7 @@ const CheckoutPage: React.FC = () => {
                 {cart.map(item => (
                   <div key={item.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <img src={item.images[0]} alt={item.name} className="w-12 h-12 rounded-md object-cover"/>
+                      <img src={item.images?.[0] || 'https://picsum.photos/seed/checkoutitem/100'} alt={item.name} className="w-12 h-12 rounded-md object-cover"/>
                       <div>
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-text-secondary">Qty: {item.quantity}</p>
