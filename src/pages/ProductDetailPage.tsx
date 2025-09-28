@@ -388,7 +388,7 @@ const ProductDetailPage: React.FC = () => {
        
       {/* Reviews Section */}
       <div className="mt-16 pt-10 border-t">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Customer Reviews</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">Customer Reviewssss</h2>
           {reviews.length > 0 ? (
               <div className="space-y-6">
                   {reviews.map(review => (
@@ -404,7 +404,7 @@ const ProductDetailPage: React.FC = () => {
                   ))}
               </div>
           ) : (
-            <p className="text-text-secondary">No reviews yettttt. Be the first to share your thoughts!</p>
+            <p className="text-text-secondary">No reviews yet. Be the first to share your thoughts!</p>
           )}
 
           {/* Add Review Form */}
