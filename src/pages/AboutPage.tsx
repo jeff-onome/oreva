@@ -1,43 +1,11 @@
 import React from 'react';
-import { Sparkles, Target, Users, Heart, Linkedin, Twitter } from 'lucide-react';
+import { Sparkles, Target, Users, Heart, Twitter, Instagram, MessageSquare } from 'lucide-react';
 import { useSiteSettings } from '../context/SiteSettingsContext';
-
-const teamMembers = [
-  {
-    name: 'Jasmine Lee',
-    role: 'Founder & CEO',
-    imageUrl: 'https://picsum.photos/seed/team1/400/400',
-    bio: 'Jasmine started ORESKY with a passion for vibrant design and quality products. She leads the team with a creative vision and a customer-first mindset.',
-    social: {
-      linkedin: '#',
-      twitter: '#',
-    },
-  },
-  {
-    name: 'Ben Carter',
-    role: 'Head of Product',
-    imageUrl: 'https://picsum.photos/seed/team2/400/400',
-    bio: 'Ben is the mastermind behind our curated collection, always on the lookout for unique items that spark joy and inspire creativity.',
-    social: {
-      linkedin: '#',
-      twitter: '#',
-    },
-  },
-  {
-    name: 'Chloe Garcia',
-    role: 'Lead Designer',
-    imageUrl: 'https://picsum.photos/seed/team3/400/400',
-    bio: 'Chloe brings the ORESKY brand to life with her bold and colorful designs, ensuring our site is as delightful as our products.',
-    social: {
-      linkedin: '#',
-      twitter: '#',
-    },
-  },
-];
 
 const AboutPage: React.FC = () => {
     const { settings, loading } = useSiteSettings();
     const content = settings.about_page;
+    const teamMembers = settings.team_members || [];
     
     if (loading) {
         return <div className="text-center py-20">Loading...</div>;
@@ -99,25 +67,28 @@ const AboutPage: React.FC = () => {
       </section>
 
       {/* Meet the Team Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">Meet the Team</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {teamMembers.map(member => (
-              <div key={member.name} className="bg-base rounded-xl shadow-lg text-center p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-                <img src={member.imageUrl} alt={member.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-primary" />
-                <h3 className="text-xl font-bold">{member.name}</h3>
-                <p className="text-primary font-semibold mb-2">{member.role}</p>
-                <p className="text-text-secondary text-sm mb-4">{member.bio}</p>
-                <div className="flex justify-center space-x-4">
-                  <a href={member.social.linkedin} className="text-text-secondary hover:text-primary"><Linkedin /></a>
-                  <a href={member.social.twitter} className="text-text-secondary hover:text-primary"><Twitter /></a>
+      {teamMembers.length > 0 && (
+        <section className="py-16">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">Meet the Team</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {teamMembers.map(member => (
+                <div key={member.name} className="bg-base rounded-xl shadow-lg text-center p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+                  <img src={member.imageUrl || 'https://picsum.photos/seed/team/400'} alt={member.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-primary" />
+                  <h3 className="text-xl font-bold">{member.name}</h3>
+                  <p className="text-primary font-semibold mb-2">{member.role}</p>
+                  <p className="text-text-secondary text-sm mb-4">{member.bio}</p>
+                  <div className="flex justify-center space-x-4">
+                    {member.social?.twitter && <a href={member.social.twitter} target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-primary"><Twitter /></a>}
+                    {member.social?.whatsapp && <a href={member.social.whatsapp} target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-primary"><MessageSquare /></a>}
+                    {member.social?.instagram && <a href={member.social.instagram} target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-primary"><Instagram /></a>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 };

@@ -4,7 +4,7 @@ import { ArrowRight, Gift, Package, ShieldCheck, ChevronLeft, ChevronRight, Zap,
 import Button from '../components/Button';
 import ProductCard from '../components/ProductCard';
 import { db } from '../utils/firebase';
-import { Product, Category, FlashSale } from '../types';
+import { Product, Category, FlashSale, HeroSlide } from '../types';
 import { formatNaira } from '../utils/formatters';
 import { useSiteSettings } from '../context/SiteSettingsContext';
 import Spinner from '../components/Spinner';
@@ -247,7 +247,7 @@ const HomePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                     {categories.map(category => (
                     <Link key={category.id} to={`/products?category=${category.slug}`} className="group relative block bg-base rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300">
-                        <div className="h-48 bg-cover bg-center" style={{backgroundImage: `url(https://picsum.photos/seed/${category.slug}/800/600)`}}></div>
+                        <div className="h-48 bg-cover bg-center" style={{backgroundImage: `url(${category.imageUrl || `https://picsum.photos/seed/${category.slug}/800/600`})`}}></div>
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <h3 className="text-2xl font-bold text-white group-hover:scale-105 transition-transform">{category.name}</h3>
                         </div>

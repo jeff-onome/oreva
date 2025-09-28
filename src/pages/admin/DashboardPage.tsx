@@ -85,7 +85,7 @@ const DashboardPage: React.FC = () => {
                     snapshotToArray(lowStockSnap).map((product: any) => ({
                         id: product.id,
                         name: product.name,
-                        stock: product.stock
+                        stock: product.stock,
                     }))
                 );
 

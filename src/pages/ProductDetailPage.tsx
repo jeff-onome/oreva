@@ -65,7 +65,7 @@ const ReviewForm: React.FC<{ productId: string, onReviewSubmit: () => void }> = 
                     <label className="block text-sm font-medium text-text-secondary mb-1">Your Rating</label>
                     <div className="flex items-center">
                         {[1, 2, 3, 4, 5].map(star => (
-                            <button key={star} type="button" onClick={() => setRating(star)} aria-label={`Set rating ${star}`}>
+                            <button key={star} type="button" onClick={() => setRating(star)}>
                                 <Star className={`w-6 h-6 ${rating >= star ? 'text-yellow-400' : 'text-slate-300'}`} fill="currentColor"/>
                             </button>
                         ))}
@@ -83,7 +83,7 @@ const ReviewForm: React.FC<{ productId: string, onReviewSubmit: () => void }> = 
                         required
                     />
                 </div>
-                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
+                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2 justify-center">
                     <Send size={16}/> {isSubmitting ? 'Submitting...' : 'Submit Review'}
                 </Button>
             </form>
@@ -125,13 +125,13 @@ const ProductDetailPage: React.FC = () => {
         const productData = { id: productSnap.key!, ...productSnap.val() } as Product;
         setProduct(productData);
 
-        // Fetch approved reviews for this product (requires client-side filtering)
+        // Fetch approved reviews for this product
         const reviewsQuery = db.ref('reviews').orderByChild('productId').equalTo(id);
         const reviewsSnap = await reviewsQuery.get();
         const allReviews = snapshotToArray(reviewsSnap) as Review[];
         setReviews(allReviews.filter(r => r.is_approved));
 
-        // Fetch related products (client-side filtering due to RTDB query limits)
+        // Related products
         if (productData.categories && productData.categories.length > 0) {
             const firstCategorySlug = productData.categories[0].slug;
             const allProductsSnap = await db.ref('products').get();
@@ -142,9 +142,8 @@ const ProductDetailPage: React.FC = () => {
             setRelatedProducts(related);
         }
 
-        // Check if user has purchased this item and if it's in their wishlist
+        // Wishlist + purchases
         if (user) {
-            // Check wishlist
             const wishlistQuery = db.ref(`users/${user.id}/wishlist`).orderByChild('productId').equalTo(id);
             const wishlistSnap = await wishlistQuery.get();
             if (wishlistSnap.exists()) {
@@ -153,7 +152,6 @@ const ProductDetailPage: React.FC = () => {
                 setWishlistDocId(null);
             }
 
-            // Check purchase history (client-side filtering required)
             const ordersQuery = db.ref('orders').orderByChild('userId').equalTo(user.id);
             const ordersSnap = await ordersQuery.get();
             const userOrders = snapshotToArray(ordersSnap);
@@ -174,9 +172,7 @@ const ProductDetailPage: React.FC = () => {
     fetchPageData();
   }, [fetchPageData]);
 
-  const handleReviewSubmitted = useCallback(async () => {
-     // The review is pending, so we don't need to re-fetch the public reviews list.
-  }, []);
+  const handleReviewSubmitted = useCallback(async () => {}, []);
   
   const handleAddToCart = () => {
     if (!product) return;
@@ -229,8 +225,7 @@ const ProductDetailPage: React.FC = () => {
   const displayPrice = product.sale_price || product.price;
 
   return (
-    // ensure no horizontal overflow on the entire page
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 overflow-x-hidden">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 overflow-hidden">
        <div className="flex justify-between items-center mb-6">
             <button 
                 onClick={() => navigate(-1)} 
@@ -246,32 +241,32 @@ const ProductDetailPage: React.FC = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Image Gallery */}
-        <div className="min-w-0"> {/* min-w-0 prevents flex overflow with long content */}
+        <div>
           <div className="relative bg-base rounded-xl shadow-lg overflow-hidden mb-4">
             <img 
               key={currentImageIndex}
               src={product.images?.[currentImageIndex] || 'https://picsum.photos/seed/product/800/600'} 
               alt={product.name} 
-              className="w-full max-h-[28rem] md:max-h-[34rem] object-contain bg-white animate-fade-in" 
+              className="w-full h-96 object-cover animate-fade-in" 
             />
             {product.images && product.images.length > 1 && (
               <>
-                <button onClick={prevImage} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all">
+                <button onClick={prevImage} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all flex items-center justify-center">
                   <ChevronLeft size={24} />
                 </button>
-                <button onClick={nextImage} aria-label="Next image" className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all">
+                <button onClick={nextImage} aria-label="Next image" className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all flex items-center justify-center">
                   <ChevronRight size={24} />
                 </button>
               </>
             )}
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar">
             {product.images?.map((img, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentImageIndex(index)}
                 aria-label={`View image ${index + 1}`}
-                className={`w-24 h-24 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${currentImageIndex === index ? 'border-primary' : 'border-transparent'}`}
+                className={`w-24 h-24 rounded-lg overflow-hidden border-2 transition-all ${currentImageIndex === index ? 'border-primary' : 'border-transparent'}`}
               >
                 <img src={img} alt={`${product.name} thumbnail ${index + 1}`} className="w-full h-full object-cover" />
               </button>
@@ -280,11 +275,11 @@ const ProductDetailPage: React.FC = () => {
         </div>
 
         {/* Product Info */}
-        <div className="min-w-0"> {/* prevent overflow caused by long titles/descriptions */}
-          <span className="text-sm font-semibold text-primary uppercase break-words">
+        <div>
+          <span className="text-sm font-semibold text-primary uppercase">
             {product.categories?.map(c => c.name).join(' / ')}
           </span>
-          <h1 className="text-3xl lg:text-4xl font-extrabold my-2 break-words">{product.name}</h1>
+          <h1 className="text-3xl lg:text-4xl font-extrabold my-2">{product.name}</h1>
           <div className="flex items-center gap-4 my-4">
             <div className="flex text-yellow-400">
               {[...Array(5)].map((_, i) => (
@@ -293,7 +288,7 @@ const ProductDetailPage: React.FC = () => {
             </div>
             <span className="text-text-secondary">{(product.rating || 0).toFixed(1)} stars ({reviews.length} reviews)</span>
           </div>
-          <p className="text-text-secondary text-lg leading-relaxed mb-6 break-words">{product.description}</p>
+          <p className="text-text-secondary text-lg leading-relaxed mb-6">{product.description}</p>
           
           <div className="flex items-baseline gap-4 mb-6">
             <p className={`text-4xl md:text-5xl font-bold ${product.sale_price ? 'text-secondary' : 'text-primary'}`}>
@@ -311,84 +306,31 @@ const ProductDetailPage: React.FC = () => {
           </div>
 
           {/* Actions */}
-          {/* Responsive behavior:
-              - On small screens (mobile): show a top row with two controls (quantity control and wishlist) each taking 50%, then a full-width Add to Cart button beneath.
-              - On md+ screens: original layout (quantity, add to cart expanded, wishlist) horizontally.
-              - Button sizes reduced on mobile via responsive tailwind classes (text-sm, py-2), larger on md+.
-          */}
-          <div className="mb-6">
-            {/* MOBILE: two buttons side-by-side, each 50% */}
-            <div className="grid grid-cols-2 gap-4 md:hidden">
-              {/* Quantity control (50%) */}
-              <div className="flex items-center justify-center border border-slate-300 rounded-lg min-h-[44px] px-2" aria-hidden>
-                <button
-                  onClick={decrementQuantity}
-                  className="p-2 text-text-secondary hover:bg-neutral rounded-l-lg min-w-0"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="px-3 font-bold text-lg">{quantity}</span>
-                <button
-                  onClick={incrementQuantity}
-                  className="p-2 text-text-secondary hover:bg-neutral rounded-r-lg min-w-0"
-                  aria-label="Increase quantity"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-
-              {/* Wishlist (50%) */}
-              <div className="flex items-center justify-center">
-                <Button
-                  size="md"
-                  variant="outline"
-                  onClick={handleToggleWishlist}
-                  className="w-full flex items-center justify-center gap-2 text-sm py-2"
-                  aria-pressed={!!wishlistDocId}
-                >
-                  <Heart size={18} fill={wishlistDocId ? 'currentColor' : 'none'} />
-                  {wishlistDocId ? 'Wishlisted' : 'Wishlist'}
+          {hasStock && (
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Wishlist + Quantity Row */}
+              <div className="flex gap-4 w-full">
+                <div className="flex items-center border border-slate-300 rounded-lg w-1/2 justify-between">
+                  <button onClick={decrementQuantity} className="p-2 sm:p-3 flex items-center justify-center text-text-secondary hover:bg-neutral rounded-l-lg"><Minus size={16} /></button>
+                  <span className="px-2 sm:px-4 font-bold text-lg">{quantity}</span>
+                  <button onClick={incrementQuantity} className="p-2 sm:p-3 flex items-center justify-center text-text-secondary hover:bg-neutral rounded-r-lg"><Plus size={16} /></button>
+                </div>
+                <Button size="lg" variant="outline" onClick={handleToggleWishlist} className="w-1/2 flex items-center justify-center px-2 sm:px-4">
+                  <Heart size={20} fill={wishlistDocId ? 'currentColor' : 'none'}/>
                 </Button>
               </div>
-            </div>
-
-            {/* MOBILE: full width Add to Cart beneath */}
-            <div className="mt-3 md:hidden">
-              <Button
-                size="lg"
-                onClick={handleAddToCart}
-                className="w-full flex items-center justify-center gap-2 text-sm py-2"
-                disabled={!hasStock}
-              >
-                {addedToCart ? <><CheckCircle size={16}/> Added!</> : 'Add to Cart'}
-              </Button>
-            </div>
-
-            {/* DESKTOP / TABLET: original horizontal layout */}
-            <div className="hidden md:flex items-stretch gap-4">
-              <div className="flex items-center border border-slate-300 rounded-lg">
-                <button onClick={decrementQuantity} className="p-3 text-text-secondary hover:bg-neutral rounded-l-lg"><Minus size={16} /></button>
-                <span className="px-4 font-bold text-lg">{quantity}</span>
-                <button onClick={incrementQuantity} className="p-3 text-text-secondary hover:bg-neutral rounded-r-lg"><Plus size={16} /></button>
-              </div>
-
-              <Button size="lg" onClick={handleAddToCart} className="flex-grow flex items-center justify-center gap-2 min-w-0">
+              {/* Add to Cart Full Width on Mobile */}
+              <Button size="lg" onClick={handleAddToCart} className="w-full flex items-center justify-center gap-2">
                 {addedToCart ? <><CheckCircle size={20}/> Added!</> : 'Add to Cart' }
               </Button>
-
-              <Button size="lg" variant="outline" onClick={handleToggleWishlist} className="px-4">
-                  <Heart size={20} fill={wishlistDocId ? 'currentColor' : 'none'}/>
-              </Button>
             </div>
-          </div>
-
+          )}
         </div>
       </div>
        
       {/* Reviews Section */}
       <div className="mt-16 pt-10 border-t">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Customer Reviewssss</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">Customer Reviews</h2>
           {reviews.length > 0 ? (
               <div className="space-y-6">
                   {reviews.map(review => (

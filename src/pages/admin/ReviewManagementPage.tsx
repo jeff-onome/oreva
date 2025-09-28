@@ -146,20 +146,23 @@ const ReviewManagementPage: React.FC = () => {
                                             {review.is_approved ? 'Approved' : 'Pending'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right space-x-2">
-                                        <button onClick={() => setSelectedReview(review)} className="font-medium text-primary hover:underline">View</button>
+                                    <td className="px-4 sm:px-6 py-4 text-right space-x-1 sm:space-x-2">
+                                        <button onClick={() => setSelectedReview(review)} className="font-medium text-primary hover:underline text-xs sm:text-sm px-2">View</button>
                                         <Button
                                             size="sm"
                                             variant={review.is_approved ? 'outline' : 'primary'}
                                             onClick={() => handleApproveToggle(review)}
-                                            className="flex items-center gap-1"
+                                            className="flex items-center gap-1 px-2 text-xs sm:text-sm"
                                         >
-                                            {review.is_approved ? <><X size={14}/> Hide</> : <><Check size={14}/> Approve</>}
+                                            {review.is_approved 
+                                                ? <><X size={14}/> <span className="hidden sm:inline">Hide</span></>
+                                                : <><Check size={14}/> <span className="hidden sm:inline">Approve</span></>
+                                            }
                                         </Button>
                                         <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="text-red-600 hover:bg-red-100 p-2"
+                                            className="text-red-600 hover:bg-red-100 p-1 sm:p-2"
                                             onClick={() => handleDelete(review.id)}
                                         >
                                             <Trash2 size={16} />

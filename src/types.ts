@@ -1,4 +1,5 @@
 
+
 // FIX: Added and updated several types to resolve compilation errors across the application.
 // This includes adding types for Reviews, Wishlist, Payment Methods, Support Tickets,
 // and expanding the User and SiteSettings types.
@@ -39,9 +40,10 @@ export interface PaymentMethod {
 }
 
 export interface Category {
-  id: string;
+  id:string;
   name: string;
   slug: string;
+  imageUrl?: string;
   created_at?: string;
 }
 
@@ -187,6 +189,18 @@ export interface HeroSlide {
     subtitle: string;
 }
 
+export interface TeamMember {
+    name: string;
+    role: string;
+    imageUrl: string;
+    bio: string;
+    social: {
+        twitter: string;
+        whatsapp: string;
+        instagram: string;
+    }
+}
+
 export interface ThemeColors {
     primary: string;
     'primary-hover': string;
@@ -220,6 +234,7 @@ export interface SiteSettings {
     flash_sale: FlashSale;
     about_page: AboutPageContent;
     hero_slides: HeroSlide[];
+    team_members: TeamMember[];
     theme_colors: ThemeColors;
     site_name: SiteName;
     social_links: SocialLinks;

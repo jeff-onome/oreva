@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 // FIX: Use firebase v9 compat libraries to support v8 syntax for ServerValue.TIMESTAMP.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
-import { db } from '../../utils/firebase';
+import { db, storage } from '../../utils/firebase';
 import { Category } from '../../types';
 import Button from '../../components/Button';
-import { Plus, Edit, Trash2, X, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Search, Upload, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import InputField from '../../components/InputField';
 
@@ -58,10 +58,20 @@ const CategoryManagementPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
+  const handleDeleteCategory = async (category: Category) => {
     if (window.confirm('Are you sure you want to delete this category? This might affect products.')) {
       try {
-        await db.ref('categories/' + categoryId).remove();
+        // Delete image from storage if it exists
+        if (category.imageUrl && category.imageUrl.includes('firebasestorage.googleapis.com')) {
+            try {
+                await storage.refFromURL(category.imageUrl).delete();
+            } catch (error: any) {
+                 if (error.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete category image.", error);
+                 }
+            }
+        }
+        await db.ref('categories/' + category.id).remove();
         showToast('Category deleted successfully', 'success');
         fetchCategories();
       } catch (error) {
@@ -107,11 +117,14 @@ const CategoryManagementPage: React.FC = () => {
               <tbody>
                 {filteredCategories.map(category => (
                   <tr key={category.id} className="bg-white border-b hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{category.name}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
+                        <img src={category.imageUrl || 'https://picsum.photos/seed/cat/40'} alt={category.name} className="w-10 h-10 rounded-md object-cover bg-neutral"/>
+                        {category.name}
+                    </td>
                     <td className="px-6 py-4 font-mono">{category.slug}</td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button onClick={() => handleEditCategory(category)} className="p-2 text-primary hover:bg-neutral rounded-full"><Edit size={16} /></button>
-                      <button onClick={() => handleDeleteCategory(category.id)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDeleteCategory(category)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
@@ -135,6 +148,8 @@ const CategoryManagementPage: React.FC = () => {
 const CategoryModal: React.FC<{ category: Category | null, onClose: () => void, onSave: () => void }> = ({ category, onClose, onSave }) => {
     const [name, setName] = useState(category?.name || '');
     const [slug, setSlug] = useState(category?.slug || '');
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imageUrl, setImageUrl] = useState(category?.imageUrl || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { showToast } = useToast();
 
@@ -147,24 +162,51 @@ const CategoryModal: React.FC<{ category: Category | null, onClose: () => void, 
         setName(newName);
         setSlug(generateSlug(newName));
     }
+
+     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setImageFile(file);
+            setImageUrl(URL.createObjectURL(file)); 
+        }
+    };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        const payload = { name, slug, created_at: firebase.database.ServerValue.TIMESTAMP };
+        let finalImageUrl = category?.imageUrl || '';
 
         try {
+            if (imageFile) {
+                if (category?.imageUrl && category.imageUrl.includes('firebasestorage.googleapis.com')) {
+                    try {
+                        await storage.refFromURL(category.imageUrl).delete();
+                    } catch (error: any) {
+                        if (error.code !== 'storage/object-not-found') {
+                           console.warn("Could not delete old category image.", error);
+                        }
+                    }
+                }
+                const filePath = `category_images/${Date.now()}-${imageFile.name}`;
+                const fileRef = storage.ref(filePath);
+                const uploadResult = await fileRef.put(imageFile);
+                finalImageUrl = await uploadResult.ref.getDownloadURL();
+            }
+
             if (category) {
-                await db.ref('categories/' + category.id).update({ name, slug });
+                const updatePayload = { name, slug, imageUrl: finalImageUrl };
+                await db.ref('categories/' + category.id).update(updatePayload);
                 showToast('Category updated successfully', 'success');
             } else {
-                await db.ref('categories').push(payload);
+                const createPayload = { name, slug, imageUrl: finalImageUrl, created_at: firebase.database.ServerValue.TIMESTAMP };
+                await db.ref('categories').push(createPayload);
                 showToast('Category created successfully', 'success');
             }
             onSave();
             onClose();
         } catch (error) {
             showToast(`Error saving category`, 'error');
+            console.error(error);
         }
         setIsSubmitting(false);
     };
@@ -179,9 +221,19 @@ const CategoryModal: React.FC<{ category: Category | null, onClose: () => void, 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <InputField id="name" name="name" label="Category Name" value={name} onChange={handleNameChange} required />
                     <InputField id="slug" name="slug" label="Slug (auto-generated)" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-1">Category Image</label>
+                        {imageUrl && <img src={imageUrl} alt="Category preview" className="w-full h-32 object-cover rounded bg-neutral mb-2"/>}
+                         <input type="file" id="category-image" className="hidden" accept="image/*" onChange={handleFileChange} />
+                        <label htmlFor="category-image" className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
+                            <Upload size={14}/> {imageUrl ? 'Change Image' : 'Upload Image'}
+                        </label>
+                    </div>
+
                     <div className="pt-4 flex justify-end gap-3">
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save'}</Button>
+                        <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin"/> : 'Save'}</Button>
                     </div>
                 </form>
             </div>

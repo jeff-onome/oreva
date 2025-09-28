@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db, storage } from '../../utils/firebase';
-import { SiteSettings, Product, HeroSlide } from '../../types';
+import { SiteSettings, Product, HeroSlide, TeamMember } from '../../types';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import { useToast } from '../../context/ToastContext';
@@ -19,6 +19,7 @@ const SiteSettingsPage: React.FC = () => {
         flash_sale: { active: false, title: '', productId: '', endDate: '' },
         about_page: { title: '', subtitle: '', missionTitle: '', missionContent: '' },
         hero_slides: [],
+        team_members: [],
         site_name: { name: 'ORESKY' },
         contact_info: { email: '', phone: '', address: '', hours: '' },
         social_links: { github: '', twitter: '', linkedin: '' },
@@ -29,6 +30,7 @@ const SiteSettingsPage: React.FC = () => {
     const { showToast } = useToast();
     
     const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
     const fetchPageData = useCallback(async () => {
         setLoading(true);
@@ -38,6 +40,7 @@ const SiteSettingsPage: React.FC = () => {
                 const settingsObject = settingsSnap.val();
                 setSettings(settingsObject);
                 setHeroSlides(settingsObject.hero_slides || []);
+                setTeamMembers(settingsObject.team_members || []);
             }
             
             const productsSnap = await db.ref('products').get();
@@ -104,6 +107,44 @@ const SiteSettingsPage: React.FC = () => {
     const removeSlide = (index: number) => {
         setHeroSlides(heroSlides.filter((_, i) => i !== index));
     };
+
+    // --- Team Member Handlers ---
+    const handleTeamMemberChange = (index: number, field: keyof TeamMember | 'social.twitter' | 'social.whatsapp' | 'social.instagram', value: string) => {
+        const newMembers = [...teamMembers];
+        const member = { ...newMembers[index] };
+
+        if (field.startsWith('social.')) {
+            const socialField = field.split('.')[1] as 'twitter' | 'whatsapp' | 'instagram';
+            member.social = { ...member.social, [socialField]: value };
+        } else {
+            (member as any)[field] = value;
+        }
+        newMembers[index] = member;
+        setTeamMembers(newMembers);
+    };
+    
+    const handleTeamMemberImageUpload = async (index: number, file: File) => {
+        if (!file) return;
+        const filePath = `site_images/team/${Date.now()}-${file.name}`;
+        const fileRef = storage.ref(filePath);
+        try {
+            const uploadResult = await fileRef.put(file);
+            const downloadURL = await uploadResult.ref.getDownloadURL();
+            handleTeamMemberChange(index, 'imageUrl', downloadURL);
+            showToast('Team member image uploaded!', 'success');
+        } catch (uploadError: any) {
+             showToast(`Image upload failed: ${uploadError.message}`, 'error');
+        }
+    };
+
+    const addTeamMember = () => {
+        setTeamMembers([...teamMembers, { name: '', role: '', imageUrl: '', bio: '', social: { twitter: '#', whatsapp: '#', instagram: '#' } }]);
+    };
+
+    const removeTeamMember = (index: number) => {
+        setTeamMembers(teamMembers.filter((_, i) => i !== index));
+    };
+
 
     if (loading) return <div>Loading settings...</div>;
 
@@ -257,6 +298,43 @@ const SiteSettingsPage: React.FC = () => {
                      <div className="text-right mt-4">
                         <Button onClick={() => handleSave('about_page', settings.about_page)} disabled={isSaving === 'about_page'}>
                              {isSaving === 'about_page' ? <Loader2 className="animate-spin"/> : 'Save About Page Content'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Meet the Team Settings */}
+                <div className="p-6 border rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4">Meet the Team</h3>
+                     <div className="space-y-4">
+                        {teamMembers.map((member, index) => (
+                            <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+                                <div className="space-y-2">
+                                    <img src={member.imageUrl || 'https://picsum.photos/400'} alt="Team member preview" className="w-full h-32 object-cover rounded bg-neutral"/>
+                                    <input type="file" id={`team-image-${index}`} className="hidden" accept="image/*" onChange={(e) => e.target.files && handleTeamMemberImageUpload(index, e.target.files[0])} />
+                                    <label htmlFor={`team-image-${index}`} className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
+                                        <Upload size={14}/> Change Image
+                                    </label>
+                                </div>
+                                <div className="md:col-span-2 space-y-2">
+                                    <InputField label="Name" id={`team_name_${index}`} value={member.name} onChange={(e) => handleTeamMemberChange(index, 'name', e.target.value)} />
+                                    <InputField label="Role" id={`team_role_${index}`} value={member.role} onChange={(e) => handleTeamMemberChange(index, 'role', e.target.value)} />
+                                    <InputField label="Bio" id={`team_bio_${index}`} value={member.bio} onChange={(e) => handleTeamMemberChange(index, 'bio', e.target.value)} />
+                                    <InputField label="Twitter URL" id={`team_twitter_${index}`} value={member.social?.twitter || ''} onChange={(e) => handleTeamMemberChange(index, 'social.twitter', e.target.value)} />
+                                    <InputField label="WhatsApp URL" id={`team_whatsapp_${index}`} value={member.social?.whatsapp || ''} onChange={(e) => handleTeamMemberChange(index, 'social.whatsapp', e.target.value)} />
+                                    <InputField label="Instagram URL" id={`team_instagram_${index}`} value={member.social?.instagram || ''} onChange={(e) => handleTeamMemberChange(index, 'social.instagram', e.target.value)} />
+                                </div>
+                                <button onClick={() => removeTeamMember(index)} className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full">
+                                    <Trash2 size={16}/>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4">
+                        <Button type="button" variant="ghost" onClick={addTeamMember}>+ Add Team Member</Button>
+                    </div>
+                    <div className="text-right mt-4">
+                        <Button onClick={() => handleSave('team_members', teamMembers)} disabled={isSaving === 'team_members'}>
+                            {isSaving === 'team_members' ? <Loader2 className="animate-spin"/> : 'Save Team Settings'}
                         </Button>
                     </div>
                 </div>

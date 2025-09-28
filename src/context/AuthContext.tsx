@@ -77,13 +77,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const appUser: AppUser = {
         id: fbUser.uid,
         email: fbUser.email || '',
-        emailVerified: fbUser.emailVerified || false,
         firstName: profileData.firstName || '',
         lastName: profileData.lastName || '',
         isAdmin: profileData.isAdmin || false,
         phone: profileData.phone || '',
         country: profileData.country || '',
-        profilePictureUrl: profileData.profilePictureUrl || '',
+        profilePictureUrl: profileData.profilePictureUrl || ''
       };
       
       if (isMounted.current) {
