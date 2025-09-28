@@ -10,35 +10,36 @@
       Content-Security-Policy: Updated for Firebase.
     -->
     <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self'; 
-    script-src 'self' 'unsafe-inline' https://*.firebaseio.com; 
-    style-src 'self' 'unsafe-inline'; 
-    img-src 'self' data: https://ui-avatars.com https://picsum.photos https://fastly.picsum.photos https://firebasestorage.googleapis.com; 
-    connect-src 'self' wss://*.firebaseio.com https://*.firebaseio.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com;
-    font-src 'self';
-    object-src 'none';
-    form-action 'self';
-    frame-src https://*.firebaseio.com;
+      default-src 'self'; 
+      script-src 'self' 'unsafe-inline' https://*.firebaseio.com; 
+      style-src 'self' 'unsafe-inline'; 
+      img-src 'self' data: https://ui-avatars.com https://picsum.photos https://fastly.picsum.photos https://firebasestorage.googleapis.com; 
+      connect-src 'self' wss://*.firebaseio.com https://*.firebaseio.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com;
+      font-src 'self';
+      object-src 'none';
+      form-action 'self';
+      frame-src https://*.firebaseio.com;
     ">
 
     <title>ORESKY - Fun & Colorful Ecommerce</title>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "vite": "https://aistudiocdn.com/vite@^7.1.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/"
-  }
-}
-</script>
-</head>
+
+    <!-- Import map (optional if using CDN deps) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.1.1",
+        "react-dom": "https://aistudiocdn.com/react-dom@^19.1.1",
+        "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1",
+        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
+        "firebase": "https://aistudiocdn.com/firebase@^12.3.0"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+    
+    <!-- Entry point: Vite will rewrite this to bundled JS on build -->
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
