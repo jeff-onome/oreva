@@ -409,7 +409,7 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Add Review Form */}
           {user && hasPurchased && <ReviewForm productId={product.id} onReviewSubmit={handleReviewSubmitted} />}
-          {user && !hasPurchased && <p className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg">You must purchase this item to leave a review.</p>}
+          {user && !hasPurchased && <p className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-lg">Youuuu must purchase this item to leave a review.</p>}
           {!user && <p className="mt-4 p-4 bg-neutral rounded-lg">Please <Link to="/login" className="font-bold text-primary hover:underline">log in</Link> to leave a review.</p>}
 
       </div>
