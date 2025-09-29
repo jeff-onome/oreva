@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Order, OrderStatus, OrderItem } from '../../types';
+import { Order, OrderStatus } from '../../types';
 import { Truck, CheckCircle, Clock, Repeat, Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';
@@ -63,7 +63,7 @@ const OrderHistoryPage: React.FC = () => {
     }, [fetchOrders]);
 
 
-    const handleReorder = (items: OrderItem[]) => {
+    const handleReorder = () => {
         // This is a simplified reorder.
         console.log(`TODO: Re-add products to cart`);
         alert("Re-order functionality is a demo. It would require fetching latest product info.");
@@ -113,7 +113,7 @@ const OrderHistoryPage: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                     <p className="font-bold text-lg">Total: {formatNaira(order.total)}</p>
                                     <div className="flex items-center gap-4 mt-2 sm:mt-0">
-                                        <Button variant="ghost" size="sm" onClick={() => handleReorder(order.items)}>
+                                        <Button variant="ghost" size="sm" onClick={handleReorder}>
                                             <Repeat size={16} className="mr-2" />
                                             Reorder
                                         </Button>
