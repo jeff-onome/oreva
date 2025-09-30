@@ -82,7 +82,7 @@ const ProductManagementPage: React.FC = () => {
             if (error) console.warn(`Could not delete Supabase images:`, error);
           }
 
-          // Delete from Firebase (legacy)
+          // Delete from Firebase (legacy only)
           for (const imageUrl of product.images) {
             if (!imageUrl.includes('firebasestorage.googleapis.com')) continue;
             try {
@@ -252,18 +252,23 @@ const ProductModal: React.FC<{ product: Product | null, categories: Category[], 
           const filePath = `product_images/${Date.now()}-${file.name}`;
 
           // ✅ Upload to Supabase
-          const { data, error } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('images')
             .upload(filePath, file, {
               cacheControl: '3600',
               upsert: false
             });
 
-          if (error) throw error;
+          if (uploadError) {
+            console.error('Supabase upload error:', uploadError);
+            throw uploadError;
+          }
 
           // ✅ Get public URL
           const { data: publicData } = supabase.storage.from('images').getPublicUrl(filePath);
-          if (publicData?.publicUrl) imageUrls.push(publicData.publicUrl);
+          if (publicData?.publicUrl) {
+            imageUrls.push(publicData.publicUrl);
+          }
         }
       }
 
