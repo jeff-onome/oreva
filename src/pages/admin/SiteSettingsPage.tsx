@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { db, storage } from '../../utils/firebase';
+import { db } from '../../utils/firebase';
+import { supabase } from '../../utils/supabase';
 import { SiteSettings, Product, HeroSlide, TeamMember } from '../../types';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import { useToast } from '../../context/ToastContext';
 import { Loader2, Trash2, Upload } from 'lucide-react';
+import Skeleton from '../../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -22,7 +25,7 @@ const SiteSettingsPage: React.FC = () => {
         team_members: [],
         site_name: { name: 'ORESKY' },
         contact_info: { email: '', phone: '', address: '', hours: '' },
-        social_links: { github: '', twitter: '', linkedin: '' },
+        social_links: { facebook: '', whatsapp: '', instagram: '', twitter: '' },
     });
     const [products, setProducts] = useState<Pick<Product, 'id' | 'name'>[]>([]);
     const [loading, setLoading] = useState(true);
@@ -86,17 +89,31 @@ const SiteSettingsPage: React.FC = () => {
 
     const handleSlideImageUpload = async (index: number, file: File) => {
         if (!file) return;
+        
+        // Create a temporary blob URL for instant preview
+        const tempUrl = URL.createObjectURL(file);
+        handleSlideChange(index, 'imageUrl', tempUrl);
 
         const filePath = `site_images/hero-slider/${Date.now()}-${file.name}`;
-        const fileRef = storage.ref(filePath);
         
         try {
-            const uploadResult = await fileRef.put(file);
-            const downloadURL = await uploadResult.ref.getDownloadURL();
-            handleSlideChange(index, 'imageUrl', downloadURL);
+            const { data, error } = await supabase.storage
+                .from('images')
+                .upload(filePath, file);
+
+            if (error) throw new Error(error.message);
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('images')
+                .getPublicUrl(data.path);
+            
+            // Once uploaded, update with the permanent URL
+            handleSlideChange(index, 'imageUrl', publicUrl);
             showToast('Image uploaded!', 'success');
+            URL.revokeObjectURL(tempUrl);
         } catch (uploadError: any) {
              showToast(`Image upload failed: ${uploadError.message}`, 'error');
+             // Optionally revert to a placeholder if upload fails
         }
     };
 
@@ -125,13 +142,26 @@ const SiteSettingsPage: React.FC = () => {
     
     const handleTeamMemberImageUpload = async (index: number, file: File) => {
         if (!file) return;
+
+        // Create a temporary blob URL for instant preview
+        const tempUrl = URL.createObjectURL(file);
+        handleTeamMemberChange(index, 'imageUrl', tempUrl);
+
         const filePath = `site_images/team/${Date.now()}-${file.name}`;
-        const fileRef = storage.ref(filePath);
         try {
-            const uploadResult = await fileRef.put(file);
-            const downloadURL = await uploadResult.ref.getDownloadURL();
-            handleTeamMemberChange(index, 'imageUrl', downloadURL);
+            const { data, error } = await supabase.storage
+                .from('images')
+                .upload(filePath, file);
+
+            if (error) throw new Error(error.message);
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('images')
+                .getPublicUrl(data.path);
+
+            handleTeamMemberChange(index, 'imageUrl', publicUrl);
             showToast('Team member image uploaded!', 'success');
+            URL.revokeObjectURL(tempUrl);
         } catch (uploadError: any) {
              showToast(`Image upload failed: ${uploadError.message}`, 'error');
         }
@@ -146,7 +176,14 @@ const SiteSettingsPage: React.FC = () => {
     };
 
 
-    if (loading) return <div>Loading settings...</div>;
+    if (loading) return (
+        <div className="space-y-8 animate-pulse">
+            <Skeleton className="h-32 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
+            <Skeleton className="h-80 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
+        </div>
+    );
 
     return (
         <div>
@@ -179,7 +216,7 @@ const SiteSettingsPage: React.FC = () => {
                         {heroSlides.map((slide, index) => (
                             <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
                                 <div className="space-y-2">
-                                    <img src={slide.imageUrl || 'https://picsum.photos/300/150'} alt="Slide preview" className="w-full h-24 object-cover rounded bg-neutral"/>
+                                    <img src={slide.imageUrl || PLACEHOLDER_IMAGE_URL} alt="Slide preview" className="w-full h-24 object-cover rounded bg-neutral"/>
                                     <input 
                                         type="file" 
                                         id={`slide-image-${index}`} 
@@ -309,7 +346,7 @@ const SiteSettingsPage: React.FC = () => {
                         {teamMembers.map((member, index) => (
                             <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
                                 <div className="space-y-2">
-                                    <img src={member.imageUrl || 'https://picsum.photos/400'} alt="Team member preview" className="w-full h-32 object-cover rounded bg-neutral"/>
+                                    <img src={member.imageUrl || PLACEHOLDER_IMAGE_URL} alt="Team member preview" className="w-full h-32 object-cover rounded bg-neutral"/>
                                     <input type="file" id={`team-image-${index}`} className="hidden" accept="image/*" onChange={(e) => e.target.files && handleTeamMemberImageUpload(index, e.target.files[0])} />
                                     <label htmlFor={`team-image-${index}`} className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
                                         <Upload size={14}/> Change Image
@@ -384,11 +421,25 @@ const SiteSettingsPage: React.FC = () => {
                     <h3 className="text-xl font-semibold mb-4">Social Media Links</h3>
                     <div className="space-y-4">
                         <InputField 
-                            id="social-github" 
-                            label="GitHub URL" 
+                            id="social-facebook" 
+                            label="Facebook URL" 
                             type="url" 
-                            value={settings.social_links?.github || ''}
-                            onChange={(e) => handleSettingChange('social_links', 'github', e.target.value)}
+                            value={settings.social_links?.facebook || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'facebook', e.target.value)}
+                        />
+                         <InputField 
+                            id="social-whatsapp" 
+                            label="WhatsApp URL" 
+                            type="url" 
+                            value={settings.social_links?.whatsapp || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'whatsapp', e.target.value)}
+                        />
+                         <InputField 
+                            id="social-instagram" 
+                            label="Instagram URL" 
+                            type="url" 
+                            value={settings.social_links?.instagram || ''}
+                            onChange={(e) => handleSettingChange('social_links', 'instagram', e.target.value)}
                         />
                          <InputField 
                             id="social-twitter" 
@@ -396,13 +447,6 @@ const SiteSettingsPage: React.FC = () => {
                             type="url" 
                             value={settings.social_links?.twitter || ''}
                             onChange={(e) => handleSettingChange('social_links', 'twitter', e.target.value)}
-                        />
-                         <InputField 
-                            id="social-linkedin" 
-                            label="LinkedIn URL" 
-                            type="url" 
-                            value={settings.social_links?.linkedin || ''}
-                            onChange={(e) => handleSettingChange('social_links', 'linkedin', e.target.value)}
                         />
                     </div>
                      <div className="text-right mt-4">

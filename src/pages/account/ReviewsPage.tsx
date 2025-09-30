@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { db } from '../../utils/firebase';
 import { Review } from '../../types';
 import { Link } from 'react-router-dom';
-import Spinner from '../../components/Spinner';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -53,7 +53,23 @@ const ReviewsPage: React.FC = () => {
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">My Reviews</h2>
-             {loading ? <div className="flex justify-center py-10"><Spinner/></div> : (
+             {loading ? (
+                <div className="space-y-4 animate-pulse">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="p-4 border rounded-lg">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <Skeleton className="h-5 w-40 mb-2" />
+                                    <Skeleton className="h-4 w-24" />
+                                </div>
+                                <Skeleton className="h-6 w-20 rounded-full" />
+                            </div>
+                            <Skeleton className="h-4 w-full mt-3" />
+                            <Skeleton className="h-4 w-2/3 mt-2" />
+                        </div>
+                    ))}
+                </div>
+             ) : (
                  reviews.length > 0 ? (
                      <div className="space-y-4">
                          {reviews.map(review => (

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -6,6 +7,7 @@ import Button from '../components/Button';
 import { Trash2, Plus, Minus, ShoppingCart, Tag } from 'lucide-react';
 import { formatNaira } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 const CartPage: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, subtotal, itemCount, discount, total, applyCoupon, appliedCoupon } = useCart();
@@ -40,7 +42,7 @@ const CartPage: React.FC = () => {
           <div className="lg:col-span-2 bg-base rounded-xl shadow-lg p-6 space-y-6">
             {cart.map(item => (
               <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 border-b pb-6 last:border-b-0">
-                <img src={item.images?.[0] || 'https://picsum.photos/seed/cartitem/200'} alt={item.name} className="w-24 h-24 object-cover rounded-lg" />
+                <img src={item.images?.[0] || PLACEHOLDER_IMAGE_URL} alt={item.name} className="w-24 h-24 object-cover rounded-lg" />
                 <div className="flex-grow text-center sm:text-left">
                   <h2 className="text-lg font-bold">{item.name}</h2>
                   <p className="text-sm text-text-secondary">{item.categories[0]?.name}</p>

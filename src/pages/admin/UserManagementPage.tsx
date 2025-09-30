@@ -4,6 +4,7 @@ import { User } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import InputField from '../../components/InputField';
 import { Search } from 'lucide-react';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -43,34 +44,43 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div>
-       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+       <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
          <h2 className="text-2xl md:text-3xl font-bold">Manage Users</h2>
-         <div className="relative w-full md:w-80">
+         <div className="relative w-full md:w-80 group">
             <InputField 
                 id="search-users"
                 type="text"
                 placeholder="Search by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 w-full"
                 label=''
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
         </div>
        </div>
       <div className="bg-base overflow-x-auto rounded-lg shadow">
-        {loading ? <p className="p-6">Loading users...</p> : (
-            <table className="w-full text-sm text-left text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Name</th>
-                  <th scope="col" className="px-6 py-3">Email</th>
-                  <th scope="col" className="px-6 py-3">Country</th>
-                  <th scope="col" className="px-6 py-3">Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map(user => (
+        <table className="w-full text-sm text-left text-gray-500">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+                <th scope="col" className="px-6 py-3">Name</th>
+                <th scope="col" className="px-6 py-3">Email</th>
+                <th scope="col" className="px-6 py-3">Country</th>
+                <th scope="col" className="px-6 py-3">Role</th>
+            </tr>
+            </thead>
+            <tbody>
+            {loading ? (
+                [...Array(5)].map((_, i) => (
+                    <tr key={i} className="bg-white border-b animate-pulse">
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-48" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                    </tr>
+                ))
+            ) : (
+                filteredUsers.map(user => (
                   <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">{`${user.firstName} ${user.lastName}`}</td>
                     <td className="px-6 py-4">{user.email}</td>
@@ -81,10 +91,10 @@ const UserManagementPage: React.FC = () => {
                         </span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-        )}
+                ))
+            )}
+            </tbody>
+        </table>
       </div>
     </div>
   );

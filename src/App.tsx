@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -9,8 +9,9 @@ import Footer from './components/Footer';
 import Toast from './components/Toast';
 import ThemeManager from './components/ThemeManager';
 import Spinner from './components/Spinner';
-import { XCircle } from 'lucide-react';
+import { XCircle, Settings } from 'lucide-react';
 import Button from './components/Button';
+import { supabase } from './utils/supabase';
 
 // Page Imports
 import HomePage from './pages/HomePage';
@@ -58,35 +59,134 @@ interface ProtectedRouteProps {
   adminOnly?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = false }) => {
-  const { user, initialLoading, error, logout } = useAuth();
+const SupabaseJWTConfigError: React.FC<{ onRetry: () => void; errorDetails: string }> = ({ onRetry, errorDetails }) => {
+  return (
+    <div className="flex flex-col justify-center items-center h-screen text-center p-4 bg-neutral">
+      <div className="bg-base p-8 rounded-lg shadow-lg max-w-2xl text-left">
+        <div className="flex items-start gap-4">
+          <Settings size={48} className="text-yellow-500 flex-shrink-0 mt-1" />
+          <div>
+            <h2 className="text-2xl font-bold text-yellow-600 mb-2">Supabase Configuration Required</h2>
+            <p className="text-text-secondary mb-4">
+              Your Supabase project is not configured to validate authentication tokens from Firebase. This is a one-time setup required in your Supabase dashboard to secure your data.
+            </p>
+          </div>
+        </div>
+        
+        <div className="mt-4 border-t pt-4">
+          <h3 className="font-bold text-lg mb-2">How to Fix:</h3>
+          <ol className="list-decimal list-inside space-y-3 text-text-secondary">
+            <li>
+              Go to your Supabase Project dashboard: <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary underline">supabase.com/dashboard</a>.
+            </li>
+            <li>
+              Navigate to <strong className="text-text-primary">Project Settings</strong> (gear icon), then click <strong className="text-text-primary">Authentication</strong> in the sidebar.
+               <p className="text-xs mt-1 bg-neutral p-2 rounded">This takes you to the main Authentication page. <strong className="text-red-600">Stay on this page and scroll down. Do not click on the "Providers" tab.</strong></p>
+            </li>
+            <li>
+              On the main <strong className="text-text-primary">Authentication</strong> page, scroll down to the <strong className="text-text-primary">JWT Settings</strong> section.
+            </li>
+            <li>
+              For the <strong className="text-text-primary">JWT Secret</strong>, you must provide a JSON object telling Supabase where to find Firebase's public keys. <strong>Clear the text box completely</strong> and paste the following JSON:
+              <pre className="block bg-neutral px-3 py-2 my-1 rounded text-sm font-mono text-secondary break-all text-left overflow-x-auto">
+                <code>
+                  {JSON.stringify({ jwks_url: "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com" }, null, 2)}
+                </code>
+              </pre>
+              <p className="text-xs mt-1">This configures Supabase to use the RS256 algorithm required by Firebase.</p>
+            </li>
+             <li>
+              Set the <strong className="text-text-primary">Issuer</strong>. Enter your Firebase project's issuer URL:
+              <code className="block bg-neutral px-2 py-1 my-1 rounded text-sm font-mono text-secondary">
+                https://securetoken.google.com/ecommerce-e9230
+              </code>
+            </li>
+            <li>
+              <span className="font-bold text-red-500">Important:</span> Set the <strong className="text-text-primary">Audiences</strong>. This must contain your Firebase Project ID. Enter the following value:
+               <code className="block bg-neutral px-2 py-1 my-1 rounded text-sm font-mono text-secondary">
+                ecommerce-e9230
+              </code>
+            </li>
+            <li>
+              Once saved, come back here and click the retry button.
+            </li>
+          </ol>
+        </div>
+        
+        <div className="mt-6 text-center">
+          <Button onClick={onRetry} variant="secondary" size="lg">
+            I've configured it, Retry Now
+          </Button>
+        </div>
+         <p className="text-xs bg-yellow-50 p-2 mt-4 rounded-md text-yellow-800 font-mono text-left">
+            Verification failed with error: {errorDetails}
+        </p>
+      </div>
+    </div>
+  );
+};
 
-  if (initialLoading) {
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = false }) => {
+  const { user, initialLoading, logout } = useAuth();
+  const [verificationState, setVerificationState] = useState<'pending' | 'success' | 'failed'>('pending');
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Only run verification if Firebase auth has loaded and we have a user.
+    if (!initialLoading && user) {
+      setVerificationState('pending');
+      const verifySupabaseConnection = async () => {
+        try {
+          // Attempt a simple authenticated Supabase operation.
+          // Listing files in the user's private folder is a good, low-impact test.
+          // It requires the user to be authenticated and for RLS to be working.
+          const { error } = await supabase.storage.from('images').list(`profile_pictures/${user.id}`, { limit: 1 });
+
+          // A "404 Not Found" error is acceptable if the folder doesn't exist yet.
+          // Any other error, especially related to auth, is a failure.
+          if (error && error.message !== 'The resource was not found') {
+            throw new Error(error.message);
+          }
+          setVerificationState('success');
+        } catch (err: any) {
+          console.error("Supabase verification failed:", err);
+          setVerificationError(err.message || 'An unknown error occurred during verification.');
+          setVerificationState('failed');
+        }
+      };
+      verifySupabaseConnection();
+    }
+  }, [user, initialLoading]);
+
+
+  if (initialLoading || (user && verificationState === 'pending')) {
     return (
         <div className="flex flex-col justify-center items-center h-screen">
             <Spinner />
-            <p className="mt-4 text-text-secondary">Loading your session...</p>
+            <p className="mt-4 text-text-secondary">Verifying your session...</p>
         </div>
     );
   }
 
-  if (error) {
-    console.error("Authentication Error in ProtectedRoute:", error);
-    const handleLogoutAndRetry = async () => {
-        await logout();
-        window.location.reload();
-    };
-    return (
+  if (verificationState === 'failed' && verificationError) {
+     const handleRetry = () => window.location.reload();
+     // Check for a common JWT validation error from Supabase (the message might vary)
+     if (verificationError.toLowerCase().includes('jwt') || verificationError.toLowerCase().includes('denied') || verificationError.toLowerCase().includes('invalid')) {
+        return <SupabaseJWTConfigError onRetry={handleRetry} errorDetails={verificationError} />;
+     }
+      // Generic error for other issues
+      return (
       <div className="flex flex-col justify-center items-center h-screen text-center p-4 bg-neutral">
           <div className="bg-base p-8 rounded-lg shadow-lg max-w-lg">
               <XCircle size={48} className="mx-auto text-red-500 mb-4" />
               <h2 className="text-2xl font-bold text-red-600 mb-2">Session Error</h2>
-              <p className="text-text-secondary mb-4">A problem occurred while loading your user session.</p>
-              <p className="text-sm bg-red-50 p-3 rounded-md text-red-800 font-mono text-left">Error: {error}</p>
+              <p className="text-text-secondary mb-4">A problem occurred while verifying your session with our data services.</p>
+              <p className="text-sm bg-red-50 p-3 rounded-md text-red-800 font-mono text-left">Error: {verificationError}</p>
               <p className="mt-4 text-sm text-text-secondary">
-                  This can happen due to a network issue or if your session has expired. Please try logging out to clear your session and start again.
+                  Please try logging out and signing in again.
               </p>
-              <Button onClick={handleLogoutAndRetry} variant="secondary" className="mt-6">
+              <Button onClick={async () => { await logout(); window.location.reload(); }} variant="secondary" className="mt-6">
                   Logout & Retry
               </Button>
           </div>
@@ -101,7 +201,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = f
   if (adminOnly && !user.isAdmin) {
     return <Navigate to="/" replace />;
   }
-
+  
+  // If we reach here, Firebase user exists and Supabase verification succeeded.
   return <>{children}</>;
 };
 

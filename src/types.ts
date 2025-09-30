@@ -218,9 +218,10 @@ export interface SiteName {
 }
 
 export interface SocialLinks {
-    github: string;
+    facebook: string;
+    whatsapp: string;
+    instagram: string;
     twitter: string;
-    linkedin: string;
 }
 
 export interface ContactInfo {

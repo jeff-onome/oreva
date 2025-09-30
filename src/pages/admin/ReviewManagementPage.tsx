@@ -4,6 +4,7 @@ import { Review } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { Check, X, Trash2, Star } from 'lucide-react';
 import Button from '../../components/Button';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -120,19 +121,34 @@ const ReviewManagementPage: React.FC = () => {
         <div>
             <h2 className="text-2xl md:text-3xl font-bold mb-6">Manage Reviews</h2>
             <div className="bg-base overflow-x-auto rounded-lg shadow">
-                {loading ? <p className="p-4">Loading reviews...</p> : (
-                    <table className="w-full text-sm text-left text-gray-500">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">Product</th>
-                                <th scope="col" className="px-6 py-3">Customer</th>
-                                <th scope="col" className="px-6 py-3">Rating</th>
-                                <th scope="col" className="px-6 py-3">Status</th>
-                                <th scope="col" className="px-6 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {reviews.map(review => (
+                <table className="w-full text-sm text-left text-gray-500">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" className="px-6 py-3">Product</th>
+                            <th scope="col" className="px-6 py-3">Customer</th>
+                            <th scope="col" className="px-6 py-3">Rating</th>
+                            <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            [...Array(5)].map((_, i) => (
+                                <tr key={i} className="bg-white border-b animate-pulse">
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-12" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Skeleton className="h-8 w-16" />
+                                            <Skeleton className="h-8 w-8" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            reviews.map(review => (
                                 <tr key={review.id} className="bg-white border-b hover:bg-gray-50">
                                     <td className="px-6 py-4 font-medium max-w-xs truncate">{review.products?.name || 'N/A'}</td>
                                     <td className="px-6 py-4">{review.userFirstName} {review.userLastName}</td>
@@ -169,10 +185,10 @@ const ReviewManagementPage: React.FC = () => {
                                         </Button>
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
              {selectedReview && <TicketDetailsModal ticket={selectedReview} onClose={() => setSelectedReview(null)} />}
         </div>

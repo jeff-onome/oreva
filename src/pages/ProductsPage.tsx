@@ -6,7 +6,7 @@ import Button from '../components/Button';
 import { db } from '../utils/firebase';
 import { Category, Product } from '../types';
 import { formatNaira } from '../utils/formatters';
-import Spinner from '../components/Spinner';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -224,8 +224,10 @@ const ProductsPage: React.FC = () => {
 
         <main className="w-full lg:w-3/4 xl:w-4/5">
             {loading ? (
-                <div className="flex justify-center items-center py-20">
-                    <Spinner />
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <ProductCardSkeleton key={index} />
+                    ))}
                 </div>
             ) : error ? (
                 <div className="text-center py-16 bg-red-50 text-red-700 rounded-xl shadow-lg">

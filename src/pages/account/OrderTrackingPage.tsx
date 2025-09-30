@@ -6,7 +6,8 @@ import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { formatNaira } from '../../utils/formatters';
-import Spinner from '../../components/Spinner';
+import Skeleton from '../../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 const OrderTrackingPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -65,7 +66,24 @@ const OrderTrackingPage: React.FC = () => {
     };
 
     if (loading) {
-      return <div className="flex justify-center py-20"><Spinner /></div>;
+        return (
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-pulse">
+                <Skeleton className="h-5 w-48 mb-6" />
+                <Skeleton className="h-8 w-1/3 mb-4" />
+                <Skeleton className="h-5 w-1/2 mb-8" />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-8">
+                        <Skeleton className="h-40 rounded-xl" />
+                        <Skeleton className="h-64 rounded-xl" />
+                    </div>
+                    <div className="space-y-8">
+                        <Skeleton className="h-48 rounded-xl" />
+                        <Skeleton className="h-40 rounded-xl" />
+                        <Skeleton className="h-56 rounded-xl" />
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     if (!order) {
@@ -124,7 +142,7 @@ const OrderTrackingPage: React.FC = () => {
                         <div className="space-y-4">
                             {order.items.map((item: OrderItem) => (
                                 <div key={item.id} className="flex items-center gap-4 border-b pb-4 last:border-0 last:pb-0">
-                                <img src={item.image || 'https://picsum.photos/64'} alt={item.name} className="w-16 h-16 rounded-md object-cover"/>
+                                <img src={item.image || PLACEHOLDER_IMAGE_URL} alt={item.name} className="w-16 h-16 rounded-md object-cover"/>
                                 <div className="flex-grow">
                                     <p className="font-semibold">{item.name}</p>
                                     <p className="text-sm text-text-secondary">Qty: {item.quantity} &times; {formatNaira(item.price)}</p>

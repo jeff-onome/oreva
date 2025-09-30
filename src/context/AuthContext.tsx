@@ -14,6 +14,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
 import { User as AppUser } from '../types';
 import { auth, db } from '../utils/firebase';
+import { supabase } from '../utils/supabase';
 
 interface SignUpData {
   email: string;
@@ -82,7 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAdmin: profileData.isAdmin || false,
         phone: profileData.phone || '',
         country: profileData.country || '',
-        profilePictureUrl: profileData.profilePictureUrl || ''
+        profilePictureUrl: profileData.profilePictureUrl || '',
       };
       
       if (isMounted.current) {
@@ -103,8 +104,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = auth.onAuthStateChanged(async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        await fetchProfile(fbUser);
+        try {
+          // FIX: Removed problematic Supabase session sync to fix JWT error
+          // Firebase ID tokens are not directly compatible with Supabase JWTs
+          
+          // Fetch user profile from Firebase RTDB
+          await fetchProfile(fbUser);
+
+        } catch (sessionError: any) {
+          console.error("Firebase auth error:", sessionError);
+          setError(`Authentication error. Please try logging in again. Details: ${sessionError.message}`);
+          // Clear auth state
+          await auth.signOut();
+        }
       } else {
+        // User logged out from Firebase
         setUser(null);
       }
       if (isMounted.current) {
@@ -114,7 +128,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return () => unsubscribe();
   }, [fetchProfile]);
-
 
   const refreshUser = useCallback(async () => {
     if (auth.currentUser) {
@@ -170,8 +183,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       return { success: true, error: null };
-    } catch (err: any)
-{
+    } catch (err: any) {
       let friendlyMessage = 'Sign-up failed. Please try again.';
       if (err.code === 'auth/email-already-in-use') {
         friendlyMessage = 'This email address is already in use by another account.';
@@ -204,7 +216,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (isMounted.current) setLoading(false);
     }
   }, [firebaseUser]);
-
 
   const value = useMemo(
     () => ({

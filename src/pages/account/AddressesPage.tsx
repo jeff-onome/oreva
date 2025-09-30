@@ -9,6 +9,7 @@ import 'firebase/compat/database';
 import { db } from '../../utils/firebase';
 import { Address } from '../../types';
 import InputField from '../../components/InputField';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -171,7 +172,21 @@ const AddressesPage: React.FC = () => {
                 </Button>
             </div>
             {loading ? (
-                <p>Loading addresses...</p>
+                 <div className="space-y-4 animate-pulse">
+                    {[...Array(2)].map((_, i) => (
+                        <div key={i} className="p-4 border rounded-lg flex justify-between items-center gap-4">
+                            <div>
+                                <Skeleton className="h-5 w-48 mb-2" />
+                                <Skeleton className="h-4 w-64" />
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <Skeleton className="h-6 w-24 rounded-full" />
+                                <Skeleton className="w-8 h-8 rounded-full" />
+                                <Skeleton className="w-8 h-8 rounded-full" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
             ) : addresses.length === 0 ? (
                 <div className="text-center py-16 border rounded-lg">
                     <MapPin size={48} className="mx-auto text-slate-300 mb-4" />

@@ -3,11 +3,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
 import { db, storage } from '../../utils/firebase';
+import { supabase } from '../../utils/supabase';
 import { Category } from '../../types';
 import Button from '../../components/Button';
 import { Plus, Edit, Trash2, X, Search, Upload, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import InputField from '../../components/InputField';
+import Skeleton from '../../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -62,13 +65,21 @@ const CategoryManagementPage: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this category? This might affect products.')) {
       try {
         // Delete image from storage if it exists
-        if (category.imageUrl && category.imageUrl.includes('firebasestorage.googleapis.com')) {
-            try {
-                await storage.refFromURL(category.imageUrl).delete();
-            } catch (error: any) {
-                 if (error.code !== 'storage/object-not-found') {
-                    console.warn("Could not delete category image.", error);
-                 }
+        if (category.imageUrl) {
+            if (category.imageUrl.includes('supabase.co')) {
+                const urlParts = category.imageUrl.split('/images/');
+                const imagePath = urlParts.length > 1 ? urlParts[1] : null;
+                if (imagePath) {
+                    await supabase.storage.from('images').remove([imagePath]);
+                }
+            } else if (category.imageUrl.includes('firebasestorage.googleapis.com')) {
+                try {
+                    await storage.refFromURL(category.imageUrl).delete();
+                } catch (error: any) {
+                     if (error.code !== 'storage/object-not-found') {
+                        console.warn("Could not delete legacy category image.", error);
+                     }
+                }
             }
         }
         await db.ref('categories/' + category.id).remove();
@@ -82,43 +93,61 @@ const CategoryManagementPage: React.FC = () => {
 
   return (
     <div>
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
         <h2 className="text-2xl md:text-3xl font-bold">Manage Categories</h2>
-        <div className="flex items-center gap-4 w-full md:w-auto">
-             <div className="relative w-full md:w-64">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+             <div className="relative w-full sm:w-64 group">
                 <InputField 
                     id="search-categories"
                     type="text"
                     placeholder="Search categories..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                     label=''
                     name="search-categories"
                 />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
             </div>
-            <Button variant="secondary" className="flex items-center gap-2" onClick={handleAddCategory}>
-              <Plus size={18} /> <span className="hidden sm:inline">Add Category</span>
+            <Button variant="secondary" className="flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handleAddCategory}>
+              <Plus size={18} /> Add New Category
             </Button>
         </div>
       </div>
 
       <div className="bg-base overflow-x-auto rounded-lg shadow">
-        {loading ? <p className="p-6">Loading categories...</p> : (
-            <table className="w-full text-sm text-left text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Name</th>
-                  <th scope="col" className="px-6 py-3">Slug</th>
-                  <th scope="col" className="px-6 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCategories.map(category => (
+        <table className="w-full text-sm text-left text-gray-500">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+                <th scope="col" className="px-6 py-3">Name</th>
+                <th scope="col" className="px-6 py-3">Slug</th>
+                <th scope="col" className="px-6 py-3 text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {loading ? (
+                [...Array(4)].map((_, i) => (
+                    <tr key={i} className="bg-white border-b animate-pulse">
+                        <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="w-10 h-10 rounded-md" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                        </td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+                        <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                                <Skeleton className="w-8 h-8 rounded-full" />
+                                <Skeleton className="w-8 h-8 rounded-full" />
+                            </div>
+                        </td>
+                    </tr>
+                ))
+            ) : (
+                filteredCategories.map(category => (
                   <tr key={category.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-3">
-                        <img src={category.imageUrl || 'https://picsum.photos/seed/cat/40'} alt={category.name} className="w-10 h-10 rounded-md object-cover bg-neutral"/>
+                        <img src={category.imageUrl || PLACEHOLDER_IMAGE_URL} alt={category.name} className="w-10 h-10 rounded-md object-cover bg-neutral"/>
                         {category.name}
                     </td>
                     <td className="px-6 py-4 font-mono">{category.slug}</td>
@@ -127,10 +156,10 @@ const CategoryManagementPage: React.FC = () => {
                       <button onClick={() => handleDeleteCategory(category)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-        )}
+                ))
+            )}
+            </tbody>
+        </table>
       </div>
 
       {isModalOpen && (
@@ -167,7 +196,9 @@ const CategoryModal: React.FC<{ category: Category | null, onClose: () => void, 
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             setImageFile(file);
-            setImageUrl(URL.createObjectURL(file)); 
+            // FIX: Cast file to Blob to resolve potential type error with URL.createObjectURL.
+            // The TypeScript configuration seems to infer iterator values as `unknown`.
+            setImageUrl(URL.createObjectURL(file as Blob)); 
         }
     };
     
@@ -178,19 +209,15 @@ const CategoryModal: React.FC<{ category: Category | null, onClose: () => void, 
 
         try {
             if (imageFile) {
-                if (category?.imageUrl && category.imageUrl.includes('firebasestorage.googleapis.com')) {
-                    try {
-                        await storage.refFromURL(category.imageUrl).delete();
-                    } catch (error: any) {
-                        if (error.code !== 'storage/object-not-found') {
-                           console.warn("Could not delete old category image.", error);
-                        }
-                    }
-                }
                 const filePath = `category_images/${Date.now()}-${imageFile.name}`;
-                const fileRef = storage.ref(filePath);
-                const uploadResult = await fileRef.put(imageFile);
-                finalImageUrl = await uploadResult.ref.getDownloadURL();
+                const { data, error } = await supabase.storage
+                    .from('images')
+                    .upload(filePath, imageFile);
+
+                if (error) throw error;
+                
+                const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(data.path);
+                finalImageUrl = publicUrl;
             }
 
             if (category) {

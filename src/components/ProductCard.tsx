@@ -6,6 +6,7 @@ import { Product } from '../types';
 import Button from './Button';
 import { useCart } from '../context/CartContext';
 import { formatNaira } from '../utils/formatters';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +21,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       <div className="relative">
         <Link to={`/products/${product.id}`}>
           <img
-            src={product.images?.[0] || 'https://picsum.photos/seed/product/800/600'}
+            src={product.images?.[0] || PLACEHOLDER_IMAGE_URL}
             alt={product.name}
             className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300"
           />

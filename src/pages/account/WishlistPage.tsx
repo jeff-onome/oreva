@@ -5,7 +5,7 @@ import { db } from '../../utils/firebase';
 import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/ProductCard';
 import { useToast } from '../../context/ToastContext';
-import Spinner from '../../components/Spinner';
+import ProductCardSkeleton from '../../components/ProductCardSkeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -56,7 +56,13 @@ const WishlistPage: React.FC = () => {
     return (
         <div>
             <h2 className="text-2xl font-bold mb-6">My Wishlist</h2>
-            {loading ? <div className="flex justify-center py-10"><Spinner/></div> : (
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                        <ProductCardSkeleton key={index} />
+                    ))}
+                </div>
+            ) : (
                 wishlistProducts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {wishlistProducts.map(product => (

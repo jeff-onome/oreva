@@ -3,8 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import InputField from '../../components/InputField';
 import Button from '../../components/Button';
 import { Camera, Loader2 } from 'lucide-react';
-import { db, storage } from '../../utils/firebase';
+import { db } from '../../utils/firebase';
+import { supabase } from '../../utils/supabase';
 import { useToast } from '../../context/ToastContext';
+import AvatarPlaceholder from '../../components/AvatarPlaceholder';
 
 const ProfilePage: React.FC = () => {
     const { user, refreshUser } = useAuth();
@@ -55,20 +57,28 @@ const ProfilePage: React.FC = () => {
     };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0) return;
+        if (!e.target.files || e.target.files.length === 0 || !user) return;
         
         const file = e.target.files[0];
         setUploading(true);
         
         try {
-            const filePath = `profile_pictures/${user.id}/${file.name}`;
-            const fileRef = storage.ref(filePath);
-            const uploadResult = await fileRef.put(file);
-            const downloadURL = await uploadResult.ref.getDownloadURL();
+            const filePath = `profile_pictures/${user.id}/${Date.now()}-${file.name}`;
+            const { data, error } = await supabase.storage
+                .from('images')
+                .upload(filePath, file);
+
+            if (error) {
+                throw error;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('images')
+                .getPublicUrl(data.path);
 
             const userDocRef = db.ref('users/' + user.id);
             await userDocRef.update({
-                profilePictureUrl: downloadURL
+                profilePictureUrl: publicUrl
             });
             
             showToast('Profile picture updated!', 'success');
@@ -85,13 +95,17 @@ const ProfilePage: React.FC = () => {
         <div>
             <h2 className="text-2xl font-bold mb-6">Profile Information</h2>
             <form onSubmit={handleSaveChanges} className="space-y-6">
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col md:flex-row items-center text-center md:text-left gap-6">
                     <div className="relative">
-                        <img 
-                            src={user.profilePictureUrl || `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random`}
-                            alt="Profile"
-                            className="w-24 h-24 rounded-full object-cover border-4 border-neutral"
-                        />
+                         {user.profilePictureUrl ? (
+                            <img 
+                                src={user.profilePictureUrl}
+                                alt="Profile"
+                                className="w-24 h-24 rounded-full object-cover border-4 border-neutral"
+                            />
+                        ) : (
+                            <AvatarPlaceholder className="w-24 h-24 rounded-full border-4 border-neutral" />
+                        )}
                          <input
                             type="file"
                             ref={fileInputRef}

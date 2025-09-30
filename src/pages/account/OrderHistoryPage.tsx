@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Order, OrderStatus } from '../../types';
+import { Order, OrderStatus, OrderItem } from '../../types';
 import { Truck, CheckCircle, Clock, Repeat, Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';
 import { formatNaira } from '../../utils/formatters';
 import { db } from '../../utils/firebase';
-import Spinner from '../../components/Spinner';
+import Skeleton from '../../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../../utils/placeholders';
 
 const getStatusStyles = (status: OrderStatus) => {
     switch (status) {
@@ -70,7 +71,33 @@ const OrderHistoryPage: React.FC = () => {
     };
     
     if (loading) {
-        return <div className="flex justify-center py-10"><Spinner /></div>;
+        return (
+            <div className="space-y-6 animate-pulse">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <Skeleton className="h-6 w-48 mb-2" />
+                                <Skeleton className="h-4 w-32" />
+                            </div>
+                            <Skeleton className="h-7 w-24 rounded-full" />
+                        </div>
+                        <div className="flex -space-x-4 mb-4">
+                            <Skeleton className="w-12 h-12 rounded-full border-2 border-white" />
+                            <Skeleton className="w-12 h-12 rounded-full border-2 border-white" />
+                            <Skeleton className="w-12 h-12 rounded-full border-2 border-white" />
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <Skeleton className="h-7 w-32" />
+                            <div className="flex items-center gap-4">
+                                <Skeleton className="h-8 w-24 rounded" />
+                                <Skeleton className="h-5 w-20" />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
     }
 
     if (error) {
@@ -107,7 +134,7 @@ const OrderHistoryPage: React.FC = () => {
                                 </div>
                                 <div className="flex -space-x-4 mb-4">
                                     {order.items.slice(0, 5).map(item => (
-                                        <img key={item.id} src={item.image || 'https://picsum.photos/48'} alt={item.name} className="w-12 h-12 object-cover rounded-full border-2 border-white"/>
+                                        <img key={item.id} src={item.image || PLACEHOLDER_IMAGE_URL} alt={item.name} className="w-12 h-12 object-cover rounded-full border-2 border-white"/>
                                     ))}
                                 </div>
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">

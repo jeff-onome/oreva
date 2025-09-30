@@ -19,7 +19,6 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-
 // Get a reference to the database service and export it for use in other modules
 const auth = firebase.auth();
 const db = firebase.database();

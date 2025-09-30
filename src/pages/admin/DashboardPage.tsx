@@ -4,7 +4,7 @@ import { db } from '../../utils/firebase';
 import { Order, Product } from '../../types';
 import { formatNaira } from '../../utils/formatters';
 import { Link } from 'react-router-dom';
-import Spinner from '../../components/Spinner';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -84,8 +84,8 @@ const DashboardPage: React.FC = () => {
                 setLowStockProducts(
                     snapshotToArray(lowStockSnap).map((product: any) => ({
                         id: product.id,
-                        name: product.name,
-                        stock: product.stock,
+                        name: product.name ?? 'Unknown',
+                        stock: product.stock ?? 0,
                     }))
                 );
 
@@ -101,7 +101,21 @@ const DashboardPage: React.FC = () => {
     }, []);
 
 
-    if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
+    if (loading) return (
+        <div className="animate-pulse">
+            <Skeleton className="h-8 w-1/3 mb-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <Skeleton className="h-28 rounded-xl" />
+                <Skeleton className="h-28 rounded-xl" />
+                <Skeleton className="h-28 rounded-xl" />
+                <Skeleton className="h-28 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                <Skeleton className="h-64 rounded-xl" />
+                <Skeleton className="h-64 rounded-xl" />
+            </div>
+        </div>
+    );
     if (error) return <div className="text-center p-6 bg-red-50 text-red-700 rounded-lg">{error}</div>
 
     return (

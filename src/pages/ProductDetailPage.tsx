@@ -12,7 +12,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ProductCard from '../components/ProductCard';
 import { formatNaira } from '../utils/formatters';
-import Spinner from '../components/Spinner';
+import Skeleton from '../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -83,7 +84,7 @@ const ReviewForm: React.FC<{ productId: string, onReviewSubmit: () => void }> = 
                         required
                     />
                 </div>
-                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2 justify-center">
+                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
                     <Send size={16}/> {isSubmitting ? 'Submitting...' : 'Submit Review'}
                 </Button>
             </form>
@@ -125,13 +126,13 @@ const ProductDetailPage: React.FC = () => {
         const productData = { id: productSnap.key!, ...productSnap.val() } as Product;
         setProduct(productData);
 
-        // Fetch approved reviews for this product
+        // Fetch approved reviews for this product (requires client-side filtering)
         const reviewsQuery = db.ref('reviews').orderByChild('productId').equalTo(id);
         const reviewsSnap = await reviewsQuery.get();
         const allReviews = snapshotToArray(reviewsSnap) as Review[];
         setReviews(allReviews.filter(r => r.is_approved));
 
-        // Related products
+        // Fetch related products (client-side filtering due to RTDB query limits)
         if (productData.categories && productData.categories.length > 0) {
             const firstCategorySlug = productData.categories[0].slug;
             const allProductsSnap = await db.ref('products').get();
@@ -142,8 +143,9 @@ const ProductDetailPage: React.FC = () => {
             setRelatedProducts(related);
         }
 
-        // Wishlist + purchases
+        // Check if user has purchased this item and if it's in their wishlist
         if (user) {
+            // Check wishlist
             const wishlistQuery = db.ref(`users/${user.id}/wishlist`).orderByChild('productId').equalTo(id);
             const wishlistSnap = await wishlistQuery.get();
             if (wishlistSnap.exists()) {
@@ -152,6 +154,7 @@ const ProductDetailPage: React.FC = () => {
                 setWishlistDocId(null);
             }
 
+            // Check purchase history (client-side filtering required)
             const ordersQuery = db.ref('orders').orderByChild('userId').equalTo(user.id);
             const ordersSnap = await ordersQuery.get();
             const userOrders = snapshotToArray(ordersSnap);
@@ -172,7 +175,9 @@ const ProductDetailPage: React.FC = () => {
     fetchPageData();
   }, [fetchPageData]);
 
-  const handleReviewSubmitted = useCallback(async () => {}, []);
+  const handleReviewSubmitted = useCallback(async () => {
+     // The review is pending, so we don't need to re-fetch the public reviews list.
+  }, []);
   
   const handleAddToCart = () => {
     if (!product) return;
@@ -214,7 +219,37 @@ const ProductDetailPage: React.FC = () => {
 
 
   if (loading) {
-    return <div className="flex justify-center py-20"><Spinner /></div>;
+    return (
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-pulse">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                {/* Image Gallery Skeleton */}
+                <div>
+                    <Skeleton className="h-96 rounded-xl mb-4" />
+                    <div className="flex gap-4">
+                        <Skeleton className="w-24 h-24 rounded-lg" />
+                        <Skeleton className="w-24 h-24 rounded-lg" />
+                        <Skeleton className="w-24 h-24 rounded-lg" />
+                    </div>
+                </div>
+                {/* Product Info Skeleton */}
+                <div>
+                    <Skeleton className="h-4 w-1/4 mb-4" />
+                    <Skeleton className="h-10 w-full mb-4" />
+                    <Skeleton className="h-6 w-1/2 mb-6" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-3/4 mb-6" />
+                    <Skeleton className="h-12 w-1/3 mb-6" />
+                    <Skeleton className="h-6 w-1/4 mb-6" />
+                    <div className="flex items-stretch gap-4 mb-6">
+                        <Skeleton className="h-12 w-32 rounded-lg" />
+                        <Skeleton className="h-12 flex-grow rounded-lg" />
+                        <Skeleton className="h-12 w-12 rounded-lg" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
   }
   
   if (!product) {
@@ -225,7 +260,7 @@ const ProductDetailPage: React.FC = () => {
   const displayPrice = product.sale_price || product.price;
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 overflow-hidden">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
        <div className="flex justify-between items-center mb-6">
             <button 
                 onClick={() => navigate(-1)} 
@@ -245,22 +280,22 @@ const ProductDetailPage: React.FC = () => {
           <div className="relative bg-base rounded-xl shadow-lg overflow-hidden mb-4">
             <img 
               key={currentImageIndex}
-              src={product.images?.[currentImageIndex] || 'https://picsum.photos/seed/product/800/600'} 
+              src={product.images?.[currentImageIndex] || PLACEHOLDER_IMAGE_URL} 
               alt={product.name} 
               className="w-full h-96 object-cover animate-fade-in" 
             />
             {product.images && product.images.length > 1 && (
               <>
-                <button onClick={prevImage} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all flex items-center justify-center">
+                <button onClick={prevImage} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all">
                   <ChevronLeft size={24} />
                 </button>
-                <button onClick={nextImage} aria-label="Next image" className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all flex items-center justify-center">
+                <button onClick={nextImage} aria-label="Next image" className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-white/80 text-text-primary p-2 rounded-full shadow-md transition-all">
                   <ChevronRight size={24} />
                 </button>
               </>
             )}
           </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4">
             {product.images?.map((img, index) => (
               <button
                 key={index}
@@ -307,21 +342,31 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Actions */}
           {hasStock && (
-            <div className="flex flex-col gap-4 mb-6">
-              {/* Wishlist + Quantity Row */}
-              <div className="flex gap-4 w-full">
-                <div className="flex items-center border border-slate-300 rounded-lg w-1/2 justify-between">
-                  <button onClick={decrementQuantity} className="p-2 sm:p-3 flex items-center justify-center text-text-secondary hover:bg-neutral rounded-l-lg"><Minus size={16} /></button>
-                  <span className="px-2 sm:px-4 font-bold text-lg">{quantity}</span>
-                  <button onClick={incrementQuantity} className="p-2 sm:p-3 flex items-center justify-center text-text-secondary hover:bg-neutral rounded-r-lg"><Plus size={16} /></button>
-                </div>
-                <Button size="lg" variant="outline" onClick={handleToggleWishlist} className="w-1/2 flex items-center justify-center px-2 sm:px-4">
-                  <Heart size={20} fill={wishlistDocId ? 'currentColor' : 'none'}/>
-                </Button>
+            <div className="flex flex-wrap lg:flex-nowrap items-stretch gap-4 mb-6">
+              
+              {/* Quantity Controls */}
+              <div className="flex items-center border border-slate-300 rounded-lg flex-grow basis-0 lg:flex-grow-0 lg:w-auto">
+                  <button onClick={decrementQuantity} aria-label="Decrease quantity" className="p-3 text-text-secondary hover:bg-neutral rounded-l-lg transition-colors"><Minus size={16} /></button>
+                  <span className="px-4 font-bold text-lg w-full text-center" aria-live="polite">{quantity}</span>
+                  <button onClick={incrementQuantity} aria-label="Increase quantity" className="p-3 text-text-secondary hover:bg-neutral rounded-r-lg transition-colors"><Plus size={16} /></button>
               </div>
-              {/* Add to Cart Full Width on Mobile */}
-              <Button size="lg" onClick={handleAddToCart} className="w-full flex items-center justify-center gap-2">
-                {addedToCart ? <><CheckCircle size={20}/> Added!</> : 'Add to Cart' }
+
+              {/* Wishlist Button */}
+              <Button 
+                  variant="outline" 
+                  onClick={handleToggleWishlist} 
+                  className="flex-grow basis-0 lg:flex-grow-0 lg:w-auto lg:order-last px-4 flex justify-center items-center py-2 text-base lg:py-3 lg:text-lg"
+                  aria-label={wishlistDocId ? 'Remove from wishlist' : 'Add to wishlist'}
+              >
+                  <Heart size={20} fill={wishlistDocId ? 'currentColor' : 'none'}/>
+              </Button>
+
+              {/* Add to Cart Button */}
+              <Button 
+                  onClick={handleAddToCart} 
+                  className="w-full lg:flex-grow lg:basis-auto order-last lg:order-none flex items-center justify-center gap-2 py-2 px-6 text-base lg:py-3 lg:px-8 lg:text-lg"
+              >
+                  {addedToCart ? <><CheckCircle size={20}/> Added!</> : 'Add to Cart' }
               </Button>
             </div>
           )}

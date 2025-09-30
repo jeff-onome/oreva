@@ -7,18 +7,18 @@
     <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <!-- 
-      Content-Security-Policy: Updated for Firebase.
+      Content-Security-Policy: Updated for Firebase & Supabase.
     -->
     <meta http-equiv="Content-Security-Policy" content="
     default-src 'self'; 
-    script-src 'self' 'unsafe-inline' https://*.firebaseio.com; 
+    script-src 'self' 'unsafe-inline' https://*.firebaseio.com https://apis.google.com; 
     style-src 'self' 'unsafe-inline'; 
-    img-src 'self' data: https://ui-avatars.com https://picsum.photos https://fastly.picsum.photos https://firebasestorage.googleapis.com; 
-    connect-src 'self' wss://*.firebaseio.com https://*.firebaseio.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com;
+    img-src 'self' data: blob: https://firebasestorage.googleapis.com https://uauxgbkxqjbpuhkcnlpk.supabase.co; 
+    connect-src 'self' wss://*.firebaseio.com https://*.firebaseio.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://uauxgbkxqjbpuhkcnlpk.supabase.co;
     font-src 'self';
     object-src 'none';
     form-action 'self';
-    frame-src https://*.firebaseio.com;
+    frame-src https://*.firebaseio.com https://ecommerce-e9230.firebaseapp.com;
     ">
 
     <title>ORESKY - Fun & Colorful Ecommerce</title>
@@ -32,7 +32,8 @@
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.1",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/"
+    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4"
   }
 }
 </script>

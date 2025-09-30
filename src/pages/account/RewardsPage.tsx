@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../utils/firebase';
 import { Coupon } from '../../types';
 import { formatNaira } from '../../utils/formatters';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -52,7 +53,13 @@ const RewardsPage: React.FC = () => {
                 {/* Available Coupons */}
                 <div className="bg-secondary/5 p-6 rounded-lg">
                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Tag size={20} className="text-secondary"/> Available Coupons</h3>
-                     {loading ? <p>Loading coupons...</p> : (
+                     {loading ? (
+                        <div className="space-y-3 animate-pulse">
+                            <Skeleton className="h-16 rounded-lg" />
+                            <Skeleton className="h-16 rounded-lg" />
+                            <Skeleton className="h-16 rounded-lg" />
+                        </div>
+                     ) : (
                          coupons.length > 0 ? (
                             <div className="space-y-3">
                                 {coupons.map(coupon => (

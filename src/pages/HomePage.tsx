@@ -7,7 +7,9 @@ import { db } from '../utils/firebase';
 import { Product, Category, FlashSale } from '../types';
 import { formatNaira } from '../utils/formatters';
 import { useSiteSettings } from '../context/SiteSettingsContext';
-import Spinner from '../components/Spinner';
+import Skeleton from '../components/Skeleton';
+import ProductCardSkeleton from '../components/ProductCardSkeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -187,7 +189,24 @@ const HomePage: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="py-20 flex justify-center"><Spinner /></div>
+        <>
+          <section className="py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <Skeleton className="h-8 w-1/3 mx-auto mb-10" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+              </div>
+            </div>
+          </section>
+          <section className="bg-neutral py-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+              <Skeleton className="h-8 w-1/3 mx-auto mb-10" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
+              </div>
+            </div>
+          </section>
+        </>
       ) : error ? (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
             <AlertTriangle size={48} className="mx-auto text-red-400 mb-4" />
@@ -211,7 +230,7 @@ const HomePage: React.FC = () => {
                           </div>
                           <Link to={`/products/${flashSaleProduct.id}`} className="block bg-white/10 p-6 rounded-xl hover:bg-white/20 transition">
                             <div className="flex items-center gap-6">
-                               <img src={flashSaleProduct.images[0]} alt={flashSaleProduct.name} className="w-32 h-32 object-cover rounded-lg"/>
+                               <img src={flashSaleProduct.images?.[0] || PLACEHOLDER_IMAGE_URL} alt={flashSaleProduct.name} className="w-32 h-32 object-cover rounded-lg"/>
                                <div>
                                     <h3 className="text-xl font-bold">{flashSaleProduct.name}</h3>
                                     <div className="flex items-baseline gap-3 mt-2">
@@ -247,7 +266,7 @@ const HomePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                     {categories.map(category => (
                     <Link key={category.id} to={`/products?category=${category.slug}`} className="group relative block bg-base rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300">
-                        <div className="h-48 bg-cover bg-center" style={{backgroundImage: `url(${category.imageUrl || `https://picsum.photos/seed/${category.slug}/800/600`})`}}></div>
+                        <div className="h-48 bg-cover bg-center" style={{backgroundImage: `url(${category.imageUrl || PLACEHOLDER_IMAGE_URL})`}}></div>
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <h3 className="text-2xl font-bold text-white group-hover:scale-105 transition-transform">{category.name}</h3>
                         </div>

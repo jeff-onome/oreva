@@ -1,6 +1,8 @@
 import React from 'react';
 import { Sparkles, Target, Users, Heart, Twitter, Instagram, MessageSquare } from 'lucide-react';
 import { useSiteSettings } from '../context/SiteSettingsContext';
+import Skeleton from '../components/Skeleton';
+import { PLACEHOLDER_IMAGE_URL } from '../utils/placeholders';
 
 const AboutPage: React.FC = () => {
     const { settings, loading } = useSiteSettings();
@@ -8,7 +10,34 @@ const AboutPage: React.FC = () => {
     const teamMembers = settings.team_members || [];
     
     if (loading) {
-        return <div className="text-center py-20">Loading...</div>;
+        return (
+            <div className="animate-pulse">
+                {/* Hero Skeleton */}
+                <div className="bg-slate-200">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-28 text-center">
+                        <Skeleton className="h-12 w-12 mx-auto mb-4 rounded-full" />
+                        <Skeleton className="h-12 w-2/3 mx-auto mb-4" />
+                        <Skeleton className="h-5 w-full max-w-3xl mx-auto" />
+                        <Skeleton className="h-5 w-4/5 max-w-3xl mx-auto mt-2" />
+                    </div>
+                </div>
+                {/* Mission Skeleton */}
+                <section className="py-16">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                            <div>
+                                <Skeleton className="h-8 w-8 mb-2" />
+                                <Skeleton className="h-8 w-1/3 mb-4" />
+                                <Skeleton className="h-4 w-full mb-2" />
+                                <Skeleton className="h-4 w-full mb-2" />
+                                <Skeleton className="h-4 w-5/6" />
+                            </div>
+                            <Skeleton className="h-80 rounded-xl" />
+                        </div>
+                    </div>
+                </section>
+            </div>
+        );
     }
 
   return (
@@ -36,7 +65,7 @@ const AboutPage: React.FC = () => {
               </p>
             </div>
             <div>
-              <img src="https://picsum.photos/seed/about/800/600" alt="Crafting process" className="rounded-xl shadow-2xl" />
+              <img src={PLACEHOLDER_IMAGE_URL} alt="Crafting process" className="rounded-xl shadow-2xl" />
             </div>
           </div>
         </div>
@@ -74,7 +103,7 @@ const AboutPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {teamMembers.map(member => (
                 <div key={member.name} className="bg-base rounded-xl shadow-lg text-center p-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-                  <img src={member.imageUrl || 'https://picsum.photos/seed/team/400'} alt={member.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-primary" />
+                  <img src={member.imageUrl || PLACEHOLDER_IMAGE_URL} alt={member.name} className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-primary" />
                   <h3 className="text-xl font-bold">{member.name}</h3>
                   <p className="text-primary font-semibold mb-2">{member.role}</p>
                   <p className="text-text-secondary text-sm mb-4">{member.bio}</p>

@@ -4,6 +4,7 @@ import { Order, OrderStatus } from '../../types';
 import { formatNaira } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
 import { Link } from 'react-router-dom';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -66,7 +67,6 @@ const OrderManagementPage: React.FC = () => {
     <div>
       <h2 className="text-2xl md:text-3xl font-bold mb-6">Manage Orders</h2>
       <div className="bg-base overflow-x-auto rounded-lg shadow">
-        {loading ? <p className="p-4">Loading orders...</p> : (
           <table className="w-full text-sm text-left text-gray-500">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50">
               <tr>
@@ -79,35 +79,47 @@ const OrderManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {orders.map(order => (
-                <tr key={order.id} className="bg-white border-b hover:bg-gray-50">
-                  <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                    #{order.id.substring(0,8)}...
-                  </th>
-                  <td className="px-6 py-4">{new Date(order.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">
-                    {order.users ? `${order.users.first_name} ${order.users.last_name}` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 font-semibold">{formatNaira(order.total)}</td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                      className="p-1 rounded-md border-gray-300 text-xs focus:ring-primary focus:border-primary"
-                    >
-                      {Object.values(OrderStatus).map(status => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link to={`/admin/orders/${order.id}`} className="font-medium text-primary hover:underline">View Details</Link>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                    <tr key={i} className="bg-white border-b animate-pulse">
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-6 w-28" /></td>
+                        <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                    </tr>
+                ))
+              ) : (
+                orders.map(order => (
+                  <tr key={order.id} className="bg-white border-b hover:bg-gray-50">
+                    <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                      #{order.id.substring(0,8)}...
+                    </th>
+                    <td className="px-6 py-4">{new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">
+                      {order.users ? `${order.users.first_name} ${order.users.last_name}` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 font-semibold">{formatNaira(order.total)}</td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                        className="p-1 rounded-md border-gray-300 text-xs focus:ring-primary focus:border-primary"
+                      >
+                        {Object.values(OrderStatus).map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link to={`/admin/orders/${order.id}`} className="font-medium text-primary hover:underline">View Details</Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        )}
       </div>
     </div>
   );

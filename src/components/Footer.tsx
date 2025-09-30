@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Github, Twitter, Linkedin } from 'lucide-react';
+import { Facebook, Twitter, Instagram, MessageSquare } from 'lucide-react';
 import { useSiteSettings } from '../context/SiteSettingsContext';
 
 const Footer: React.FC = () => {
@@ -39,9 +39,10 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="font-bold text-lg mb-4 text-white">Connect</h4>
             <div className="flex space-x-4">
-              {socials?.github && <a href={socials.github} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><Github /></a>}
+              {socials?.facebook && <a href={socials.facebook} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><Facebook /></a>}
+              {socials?.whatsapp && <a href={socials.whatsapp} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><MessageSquare /></a>}
+              {socials?.instagram && <a href={socials.instagram} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><Instagram /></a>}
               {socials?.twitter && <a href={socials.twitter} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><Twitter /></a>}
-              {socials?.linkedin && <a href={socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition"><Linkedin /></a>}
             </div>
           </div>
         </div>

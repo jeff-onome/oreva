@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { Plus, Edit, Trash2, X, Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import InputField from '../../components/InputField';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -65,26 +66,41 @@ const PromotionsPage: React.FC = () => {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl md:text-3xl font-bold">Promotions & Coupons</h2>
-                <Button variant="secondary" className="flex items-center gap-2" onClick={handleAddCoupon}>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-center sm:text-left">Promotions & Coupons</h2>
+                <Button variant="secondary" className="flex items-center justify-center gap-2 w-full sm:w-auto" onClick={handleAddCoupon}>
                     <Plus size={18} /> Create Coupon
                 </Button>
             </div>
             <div className="bg-base overflow-x-auto rounded-lg shadow">
-                {loading ? <p className="p-6">Loading coupons...</p> : (
-                    <table className="w-full text-sm text-left text-gray-500">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">Code</th>
-                                <th scope="col" className="px-6 py-3">Type</th>
-                                <th scope="col" className="px-6 py-3">Value</th>
-                                <th scope="col" className="px-6 py-3">Status</th>
-                                <th scope="col" className="px-6 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {coupons.map(coupon => (
+                <table className="w-full text-sm text-left text-gray-500">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th scope="col" className="px-6 py-3">Code</th>
+                            <th scope="col" className="px-6 py-3">Type</th>
+                            <th scope="col" className="px-6 py-3">Value</th>
+                            <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading ? (
+                            [...Array(3)].map((_, i) => (
+                                <tr key={i} className="bg-white border-b animate-pulse">
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
+                                    <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Skeleton className="w-8 h-8 rounded-full" />
+                                            <Skeleton className="w-8 h-8 rounded-full" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            coupons.map(coupon => (
                                 <tr key={coupon.id} className="bg-white border-b hover:bg-gray-50">
                                     <td className="px-6 py-4 font-mono font-medium text-gray-900">{coupon.code}</td>
                                     <td className="px-6 py-4 capitalize">{coupon.discount_type}</td>
@@ -99,10 +115,10 @@ const PromotionsPage: React.FC = () => {
                                         <button onClick={() => handleDeleteCoupon(coupon.id)} className="p-2 text-red-500 hover:bg-neutral rounded-full"><Trash2 size={16} /></button>
                                     </td>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
             {isModalOpen && (
                 <CouponModal 

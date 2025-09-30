@@ -4,6 +4,7 @@ import { SupportTicket, SupportTicketStatus } from '../../types';
 import { useToast } from '../../context/ToastContext';
 import { X } from 'lucide-react';
 import Button from '../../components/Button';
+import Skeleton from '../../components/Skeleton';
 
 const snapshotToArray = (snapshot: any) => {
     const data = snapshot.val();
@@ -103,7 +104,6 @@ const SupportManagementPage: React.FC = () => {
     <div>
       <h2 className="text-2xl md:text-3xl font-bold mb-6">Manage Support Tickets</h2>
       <div className="bg-base overflow-x-auto rounded-lg shadow">
-        {loading ? <p className="p-4">Loading tickets...</p> : (
           <table className="w-full text-sm text-left text-gray-500">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50">
               <tr>
@@ -115,33 +115,44 @@ const SupportManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {tickets.map(ticket => (
-                <tr key={ticket.id} className="bg-white border-b hover:bg-gray-50">
-                  <td className="px-6 py-4">{new Date(ticket.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">
-                      <div className="font-medium">{ticket.users?.first_name} {ticket.users?.last_name}</div>
-                      <div className="text-xs text-text-secondary">{ticket.users?.email}</div>
-                  </td>
-                   <td className="px-6 py-4 font-medium max-w-xs truncate">{ticket.subject}</td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={ticket.status}
-                      onChange={(e) => handleStatusChange(ticket.id, e.target.value as SupportTicketStatus)}
-                      className="p-1 rounded-md border-gray-300 text-xs focus:ring-primary focus:border-primary"
-                    >
-                      {Object.values(SupportTicketStatus).map(status => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => setSelectedTicket(ticket)} className="font-medium text-primary hover:underline">View Details</button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                    <tr key={i} className="bg-white border-b animate-pulse">
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-48" /></td>
+                        <td className="px-6 py-4"><Skeleton className="h-6 w-28" /></td>
+                        <td className="px-6 py-4 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                    </tr>
+                ))
+              ) : (
+                tickets.map(ticket => (
+                  <tr key={ticket.id} className="bg-white border-b hover:bg-gray-50">
+                    <td className="px-6 py-4">{new Date(ticket.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">
+                        <div className="font-medium">{ticket.users?.first_name} {ticket.users?.last_name}</div>
+                        <div className="text-xs text-text-secondary">{ticket.users?.email}</div>
+                    </td>
+                    <td className="px-6 py-4 font-medium max-w-xs truncate">{ticket.subject}</td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={ticket.status}
+                        onChange={(e) => handleStatusChange(ticket.id, e.target.value as SupportTicketStatus)}
+                        className="p-1 rounded-md border-gray-300 text-xs focus:ring-primary focus:border-primary"
+                      >
+                        {Object.values(SupportTicketStatus).map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button onClick={() => setSelectedTicket(ticket)} className="font-medium text-primary hover:underline">View Details</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
-        )}
       </div>
       {selectedTicket && <TicketDetailsModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />}
     </div>
