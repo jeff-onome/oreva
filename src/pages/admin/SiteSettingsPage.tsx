@@ -17,6 +17,15 @@ const snapshotToArray = (snapshot: any) => {
     return [];
 };
 
+// Configuration constants
+const STORAGE_CONFIG = {
+    BUCKET_NAME: 'images',
+    HERO_SLIDES_PATH: 'site_images/hero-slider',
+    TEAM_IMAGES_PATH: 'site_images/team',
+    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
+    MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+};
+
 const SiteSettingsPage: React.FC = () => {
     const [settings, setSettings] = useState<Partial<SiteSettings>>({
         flash_sale: { active: false, title: '', productId: '', endDate: '' },
@@ -30,6 +39,7 @@ const SiteSettingsPage: React.FC = () => {
     const [products, setProducts] = useState<Pick<Product, 'id' | 'name'>[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState<string | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
     const { showToast } = useToast();
     
     const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
@@ -78,7 +88,43 @@ const SiteSettingsPage: React.FC = () => {
             showToast(`Error saving ${key.replace('_',' ')}: ${error.message}`, 'error');
         }
         setIsSaving(null);
-    }
+    };
+
+    // Enhanced file upload utility function :cite[1]
+    const uploadFileToSupabase = async (file: File, filePath: string): Promise<string> => {
+        // File validation
+        if (!STORAGE_CONFIG.ALLOWED_TYPES.includes(file.type)) {
+            throw new Error(`File type not allowed. Allowed types: ${STORAGE_CONFIG.ALLOWED_TYPES.join(', ')}`);
+        }
+
+        if (file.size > STORAGE_CONFIG.MAX_FILE_SIZE) {
+            throw new Error(`File too large. Maximum size: ${STORAGE_CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB`);
+        }
+
+        // Upload file to Supabase Storage :cite[1]:cite[9]
+        const { data, error } = await supabase.storage
+            .from(STORAGE_CONFIG.BUCKET_NAME)
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) {
+            throw new Error(`Upload failed: ${error.message}`);
+        }
+
+        // Get public URL :cite[3]:cite[9]
+        const { data: { publicUrl } } = supabase.storage
+            .from(STORAGE_CONFIG.BUCKET_NAME)
+            .getPublicUrl(data.path);
+
+        // Verify the URL structure :cite[8]
+        if (!publicUrl.includes('/object/')) {
+            console.warn('Unexpected URL structure:', publicUrl);
+        }
+
+        return publicUrl;
+    };
     
     // --- Hero Slide Handlers ---
     const handleSlideChange = (index: number, field: keyof HeroSlide, value: string) => {
@@ -90,30 +136,35 @@ const SiteSettingsPage: React.FC = () => {
     const handleSlideImageUpload = async (index: number, file: File) => {
         if (!file) return;
         
+        const uploadKey = `slide-${index}`;
+        
         // Create a temporary blob URL for instant preview
         const tempUrl = URL.createObjectURL(file);
         handleSlideChange(index, 'imageUrl', tempUrl);
 
-        const filePath = `site_images/hero-slider/${Date.now()}-${file.name}`;
+        const filePath = `${STORAGE_CONFIG.HERO_SLIDES_PATH}/${Date.now()}-${file.name}`;
         
         try {
-            const { data, error } = await supabase.storage
-                .from('images')
-                .upload(filePath, file);
+            setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
 
-            if (error) throw new Error(error.message);
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('images')
-                .getPublicUrl(data.path);
+            const publicUrl = await uploadFileToSupabase(file, filePath);
             
-            // Once uploaded, update with the permanent URL
+            // Update with the permanent URL
             handleSlideChange(index, 'imageUrl', publicUrl);
-            showToast('Image uploaded!', 'success');
-            URL.revokeObjectURL(tempUrl);
+            showToast('Hero image uploaded successfully!', 'success');
+            
         } catch (uploadError: any) {
-             showToast(`Image upload failed: ${uploadError.message}`, 'error');
-             // Optionally revert to a placeholder if upload fails
+            console.error('Upload error:', uploadError);
+            showToast(`Image upload failed: ${uploadError.message}`, 'error');
+            // Revert to previous image URL or placeholder
+            handleSlideChange(index, 'imageUrl', heroSlides[index]?.imageUrl || PLACEHOLDER_IMAGE_URL);
+        } finally {
+            URL.revokeObjectURL(tempUrl);
+            setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[uploadKey];
+                return newProgress;
+            });
         }
     };
 
@@ -121,7 +172,18 @@ const SiteSettingsPage: React.FC = () => {
         setHeroSlides([...heroSlides, { imageUrl: '', title: '', subtitle: '' }]);
     };
 
-    const removeSlide = (index: number) => {
+    const removeSlide = async (index: number) => {
+        const slide = heroSlides[index];
+        if (slide.imageUrl && slide.imageUrl !== PLACEHOLDER_IMAGE_URL) {
+            // Extract file path from URL for potential cleanup
+            try {
+                // Optional: Add logic to delete file from storage when slide is removed
+                // const filePath = extractFilePathFromUrl(slide.imageUrl);
+                // await supabase.storage.from(STORAGE_CONFIG.BUCKET_NAME).remove([filePath]);
+            } catch (error) {
+                console.warn('Failed to delete image from storage:', error);
+            }
+        }
         setHeroSlides(heroSlides.filter((_, i) => i !== index));
     };
 
@@ -143,38 +205,59 @@ const SiteSettingsPage: React.FC = () => {
     const handleTeamMemberImageUpload = async (index: number, file: File) => {
         if (!file) return;
 
+        const uploadKey = `team-${index}`;
+        
         // Create a temporary blob URL for instant preview
         const tempUrl = URL.createObjectURL(file);
         handleTeamMemberChange(index, 'imageUrl', tempUrl);
 
-        const filePath = `site_images/team/${Date.now()}-${file.name}`;
+        const filePath = `${STORAGE_CONFIG.TEAM_IMAGES_PATH}/${Date.now()}-${file.name}`;
+        
         try {
-            const { data, error } = await supabase.storage
-                .from('images')
-                .upload(filePath, file);
+            setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
 
-            if (error) throw new Error(error.message);
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('images')
-                .getPublicUrl(data.path);
+            const publicUrl = await uploadFileToSupabase(file, filePath);
 
             handleTeamMemberChange(index, 'imageUrl', publicUrl);
-            showToast('Team member image uploaded!', 'success');
-            URL.revokeObjectURL(tempUrl);
+            showToast('Team member image uploaded successfully!', 'success');
+            
         } catch (uploadError: any) {
-             showToast(`Image upload failed: ${uploadError.message}`, 'error');
+            console.error('Upload error:', uploadError);
+            showToast(`Image upload failed: ${uploadError.message}`, 'error');
+            // Revert to previous image URL or placeholder
+            handleTeamMemberChange(index, 'imageUrl', teamMembers[index]?.imageUrl || PLACEHOLDER_IMAGE_URL);
+        } finally {
+            URL.revokeObjectURL(tempUrl);
+            setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[uploadKey];
+                return newProgress;
+            });
         }
     };
 
     const addTeamMember = () => {
-        setTeamMembers([...teamMembers, { name: '', role: '', imageUrl: '', bio: '', social: { twitter: '#', whatsapp: '#', instagram: '#' } }]);
+        setTeamMembers([...teamMembers, { 
+            name: '', 
+            role: '', 
+            imageUrl: '', 
+            bio: '', 
+            social: { twitter: '#', whatsapp: '#', instagram: '#' } 
+        }]);
     };
 
-    const removeTeamMember = (index: number) => {
+    const removeTeamMember = async (index: number) => {
+        const member = teamMembers[index];
+        if (member.imageUrl && member.imageUrl !== PLACEHOLDER_IMAGE_URL) {
+            // Optional: Add storage cleanup logic here
+        }
         setTeamMembers(teamMembers.filter((_, i) => i !== index));
     };
 
+    // Utility function to check if URL is from Supabase storage
+    const isSupabaseUrl = (url: string): boolean => {
+        return url.includes('supabase.co/storage/v1/object/public/');
+    };
 
     if (loading) return (
         <div className="space-y-8 animate-pulse">
@@ -216,23 +299,59 @@ const SiteSettingsPage: React.FC = () => {
                         {heroSlides.map((slide, index) => (
                             <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
                                 <div className="space-y-2">
-                                    <img src={slide.imageUrl || PLACEHOLDER_IMAGE_URL} alt="Slide preview" className="w-full h-24 object-cover rounded bg-neutral"/>
+                                    <img 
+                                        src={slide.imageUrl || PLACEHOLDER_IMAGE_URL} 
+                                        alt="Slide preview" 
+                                        className="w-full h-24 object-cover rounded bg-neutral"
+                                        onError={(e) => {
+                                            e.currentTarget.src = PLACEHOLDER_IMAGE_URL;
+                                        }}
+                                    />
                                     <input 
                                         type="file" 
                                         id={`slide-image-${index}`} 
                                         className="hidden" 
                                         accept="image/png, image/jpeg, image/webp"
-                                        onChange={(e) => e.target.files && handleSlideImageUpload(index, e.target.files[0])} 
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                handleSlideImageUpload(index, e.target.files[0]);
+                                            }
+                                            e.target.value = ''; // Reset input
+                                        }} 
                                     />
-                                    <label htmlFor={`slide-image-${index}`} className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
-                                        <Upload size={14}/> Change Image
+                                    <label 
+                                        htmlFor={`slide-image-${index}`} 
+                                        className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2"
+                                    >
+                                        {uploadProgress[`slide-${index}`] !== undefined ? (
+                                            <Loader2 className="animate-spin" size={14} />
+                                        ) : (
+                                            <Upload size={14} />
+                                        )}
+                                        {uploadProgress[`slide-${index}`] !== undefined ? 'Uploading...' : 'Change Image'}
                                     </label>
+                                    {slide.imageUrl && isSupabaseUrl(slide.imageUrl) && (
+                                        <p className="text-xs text-green-600">✓ Stored in Supabase</p>
+                                    )}
                                 </div>
                                 <div className="md:col-span-2 space-y-2">
-                                    <InputField label="Title" id={`slide_title_${index}`} value={slide.title} onChange={(e) => handleSlideChange(index, 'title', e.target.value)} />
-                                    <InputField label="Subtitle" id={`slide_subtitle_${index}`} value={slide.subtitle} onChange={(e) => handleSlideChange(index, 'subtitle', e.target.value)}/>
+                                    <InputField 
+                                        label="Title" 
+                                        id={`slide_title_${index}`} 
+                                        value={slide.title} 
+                                        onChange={(e) => handleSlideChange(index, 'title', e.target.value)} 
+                                    />
+                                    <InputField 
+                                        label="Subtitle" 
+                                        id={`slide_subtitle_${index}`} 
+                                        value={slide.subtitle} 
+                                        onChange={(e) => handleSlideChange(index, 'subtitle', e.target.value)}
+                                    />
                                 </div>
-                                <button onClick={() => removeSlide(index)} className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full">
+                                <button 
+                                    onClick={() => removeSlide(index)} 
+                                    className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full"
+                                >
                                     <Trash2 size={16}/>
                                 </button>
                             </div>
@@ -346,11 +465,40 @@ const SiteSettingsPage: React.FC = () => {
                         {teamMembers.map((member, index) => (
                             <div key={index} className="p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4 relative">
                                 <div className="space-y-2">
-                                    <img src={member.imageUrl || PLACEHOLDER_IMAGE_URL} alt="Team member preview" className="w-full h-32 object-cover rounded bg-neutral"/>
-                                    <input type="file" id={`team-image-${index}`} className="hidden" accept="image/*" onChange={(e) => e.target.files && handleTeamMemberImageUpload(index, e.target.files[0])} />
-                                    <label htmlFor={`team-image-${index}`} className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2">
-                                        <Upload size={14}/> Change Image
+                                    <img 
+                                        src={member.imageUrl || PLACEHOLDER_IMAGE_URL} 
+                                        alt="Team member preview" 
+                                        className="w-full h-32 object-cover rounded bg-neutral"
+                                        onError={(e) => {
+                                            e.currentTarget.src = PLACEHOLDER_IMAGE_URL;
+                                        }}
+                                    />
+                                    <input 
+                                        type="file" 
+                                        id={`team-image-${index}`} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                handleTeamMemberImageUpload(index, e.target.files[0]);
+                                            }
+                                            e.target.value = ''; // Reset input
+                                        }} 
+                                    />
+                                    <label 
+                                        htmlFor={`team-image-${index}`} 
+                                        className="font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-transform transform active:scale-95 duration-200 ease-in-out bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary py-1 px-3 text-sm w-full cursor-pointer flex items-center justify-center gap-2"
+                                    >
+                                        {uploadProgress[`team-${index}`] !== undefined ? (
+                                            <Loader2 className="animate-spin" size={14} />
+                                        ) : (
+                                            <Upload size={14} />
+                                        )}
+                                        {uploadProgress[`team-${index}`] !== undefined ? 'Uploading...' : 'Change Image'}
                                     </label>
+                                    {member.imageUrl && isSupabaseUrl(member.imageUrl) && (
+                                        <p className="text-xs text-green-600">✓ Stored in Supabase</p>
+                                    )}
                                 </div>
                                 <div className="md:col-span-2 space-y-2">
                                     <InputField label="Name" id={`team_name_${index}`} value={member.name} onChange={(e) => handleTeamMemberChange(index, 'name', e.target.value)} />
@@ -360,7 +508,10 @@ const SiteSettingsPage: React.FC = () => {
                                     <InputField label="WhatsApp URL" id={`team_whatsapp_${index}`} value={member.social?.whatsapp || ''} onChange={(e) => handleTeamMemberChange(index, 'social.whatsapp', e.target.value)} />
                                     <InputField label="Instagram URL" id={`team_instagram_${index}`} value={member.social?.instagram || ''} onChange={(e) => handleTeamMemberChange(index, 'social.instagram', e.target.value)} />
                                 </div>
-                                <button onClick={() => removeTeamMember(index)} className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full">
+                                <button 
+                                    onClick={() => removeTeamMember(index)} 
+                                    className="absolute top-2 right-2 p-1 text-red-500 hover:bg-red-100 rounded-full"
+                                >
                                     <Trash2 size={16}/>
                                 </button>
                             </div>

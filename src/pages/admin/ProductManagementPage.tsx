@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { db, storage } from '../../utils/firebase';
-import { supabase } from '../../utils/supabase';
+import { db } from '../../utils/firebase'; // ✅ Only db from Firebase
+import { supabase } from '../../utils/supabase'; // ✅ Supabase for images
 import { Product, Category } from '../../types';
 import Button from '../../components/Button';
 import { Plus, Edit, Trash2, Loader2, Search, X, Upload } from 'lucide-react';
@@ -68,7 +68,7 @@ const ProductManagementPage: React.FC = () => {
     if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
       try {
         if (product.images && product.images.length > 0) {
-          // Delete from Supabase
+          // ✅ Delete from Supabase only
           const supabaseImagePaths = product.images
             .filter(url => url.includes('supabase.co'))
             .map(url => {
@@ -80,19 +80,6 @@ const ProductManagementPage: React.FC = () => {
           if (supabaseImagePaths.length > 0) {
             const { error } = await supabase.storage.from('images').remove(supabaseImagePaths);
             if (error) console.warn(`Could not delete Supabase images:`, error);
-          }
-
-          // Delete from Firebase (legacy only)
-          for (const imageUrl of product.images) {
-            if (!imageUrl.includes('firebasestorage.googleapis.com')) continue;
-            try {
-              const imageRef = storage.refFromURL(imageUrl);
-              await imageRef.delete();
-            } catch (storageError: any) {
-              if (storageError.code !== 'storage/object-not-found') {
-                console.warn(`Could not delete Firebase image ${imageUrl}:`, storageError);
-              }
-            }
           }
         }
 
@@ -251,24 +238,19 @@ const ProductModal: React.FC<{ product: Product | null, categories: Category[], 
         for (const file of imageFiles) {
           const filePath = `product_images/${Date.now()}-${file.name}`;
 
-          // ✅ Upload to Supabase
-          const { error: uploadError } = await supabase.storage
+          // ✅ Upload to Supabase only
+          const { error } = await supabase.storage
             .from('images')
             .upload(filePath, file, {
               cacheControl: '3600',
               upsert: false
             });
 
-          if (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            throw uploadError;
-          }
+          if (error) throw error;
 
           // ✅ Get public URL
           const { data: publicData } = supabase.storage.from('images').getPublicUrl(filePath);
-          if (publicData?.publicUrl) {
-            imageUrls.push(publicData.publicUrl);
-          }
+          if (publicData?.publicUrl) imageUrls.push(publicData.publicUrl);
         }
       }
 
