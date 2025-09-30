@@ -7,7 +7,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key must be provided.");
 }
 
-// Export a single, stable client instance.
-// The user's session will be managed internally by the Supabase client
-// after a successful `signInWithIdToken` call in the AuthContext.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// ✅ Stable supabase client for storage
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false
+  }
+});

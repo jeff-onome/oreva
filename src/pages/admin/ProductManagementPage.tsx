@@ -68,19 +68,21 @@ const ProductManagementPage: React.FC = () => {
     if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
       try {
         if (product.images && product.images.length > 0) {
-          // Handle Supabase images
-          const supabaseImagePaths = product.images.map(url => {
-            if (!url.includes('supabase.co')) return null;
-            const urlParts = url.split('/images/');
-            return urlParts.length > 1 ? urlParts[1] : null;
-          }).filter(path => path !== null) as string[];
+          // Delete from Supabase
+          const supabaseImagePaths = product.images
+            .filter(url => url.includes('supabase.co'))
+            .map(url => {
+              const urlParts = url.split('/object/public/images/');
+              return urlParts.length > 1 ? urlParts[1] : null;
+            })
+            .filter(Boolean) as string[];
 
           if (supabaseImagePaths.length > 0) {
             const { error } = await supabase.storage.from('images').remove(supabaseImagePaths);
             if (error) console.warn(`Could not delete Supabase images:`, error);
           }
 
-          // Handle old Firebase images
+          // Delete from Firebase (legacy)
           for (const imageUrl of product.images) {
             if (!imageUrl.includes('firebasestorage.googleapis.com')) continue;
             try {
@@ -249,7 +251,7 @@ const ProductModal: React.FC<{ product: Product | null, categories: Category[], 
         for (const file of imageFiles) {
           const filePath = `product_images/${Date.now()}-${file.name}`;
 
-          // ✅ FIX: pass current auth session so RLS allows upload
+          // ✅ Upload to Supabase
           const { data, error } = await supabase.storage
             .from('images')
             .upload(filePath, file, {
@@ -259,11 +261,9 @@ const ProductModal: React.FC<{ product: Product | null, categories: Category[], 
 
           if (error) throw error;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('images')
-            .getPublicUrl(data.path);
-
-          imageUrls.push(publicUrl);
+          // ✅ Get public URL
+          const { data: publicData } = supabase.storage.from('images').getPublicUrl(filePath);
+          if (publicData?.publicUrl) imageUrls.push(publicData.publicUrl);
         }
       }
 
