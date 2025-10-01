@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Order, OrderStatus, OrderItem } from '../../types';
+import { Order, OrderStatus } from '../../types';
 import { Truck, CheckCircle, Clock, Repeat, Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button';

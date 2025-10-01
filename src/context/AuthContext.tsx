@@ -14,7 +14,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/database';
 import { User as AppUser } from '../types';
 import { auth, db } from '../utils/firebase';
-import { supabase } from '../utils/supabase';
+// Supabase import removed as it's not used in this auth context
 
 interface SignUpData {
   email: string;
