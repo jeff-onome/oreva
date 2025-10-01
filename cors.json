@@ -1,11 +1,8 @@
 [
   {
-    "origin": ["http://localhost:5173"],
-    "method": ["GET", "POST", "PUT", "HEAD"],
-    "responseHeader": [
-      "Content-Type",
-      "X-Goog-Resumable"
-    ],
+    "origin": ["http://localhost:5173", "https://oresky.netlify.app"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "responseHeader": ["Content-Type", "X-Goog-Resumable"],
     "maxAgeSeconds": 3600
   }
 ]
