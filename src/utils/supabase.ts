@@ -7,9 +7,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase URL and Anon Key must be provided.");
 }
 
-// ✅ Stable supabase client for storage
+// ✅ Use only the anon key in frontend - NEVER use service key in frontend
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
   }
 });

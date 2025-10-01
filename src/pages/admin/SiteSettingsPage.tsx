@@ -90,7 +90,7 @@ const SiteSettingsPage: React.FC = () => {
         setIsSaving(null);
     };
 
-    // Enhanced file upload utility function :cite[1]
+    // Enhanced file upload utility function
     const uploadFileToSupabase = async (file: File, filePath: string): Promise<string> => {
         // File validation
         if (!STORAGE_CONFIG.ALLOWED_TYPES.includes(file.type)) {
@@ -101,7 +101,7 @@ const SiteSettingsPage: React.FC = () => {
             throw new Error(`File too large. Maximum size: ${STORAGE_CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB`);
         }
 
-        // Upload file to Supabase Storage :cite[1]:cite[9]
+        // Upload file to Supabase Storage
         const { data, error } = await supabase.storage
             .from(STORAGE_CONFIG.BUCKET_NAME)
             .upload(filePath, file, {
@@ -110,22 +110,54 @@ const SiteSettingsPage: React.FC = () => {
             });
 
         if (error) {
+            // Handle specific storage errors
+            if (error.message.includes('bucket')) {
+                throw new Error('Storage bucket error. Please check bucket configuration.');
+            }
+            if (error.message.includes('JWT')) {
+                throw new Error('Authentication error. Please check your Supabase configuration.');
+            }
             throw new Error(`Upload failed: ${error.message}`);
         }
 
-        // Get public URL :cite[3]:cite[9]
-        const { data: { publicUrl } } = supabase.storage
+        if (!data?.path) {
+            throw new Error('Upload succeeded but no file path returned');
+        }
+
+        // Get public URL using the correct method :cite[2]:cite[7]
+        const { data: urlData } = supabase.storage
             .from(STORAGE_CONFIG.BUCKET_NAME)
             .getPublicUrl(data.path);
 
-        // Verify the URL structure :cite[8]
-        if (!publicUrl.includes('/object/')) {
-            console.warn('Unexpected URL structure:', publicUrl);
+        if (!urlData?.publicUrl) {
+            throw new Error('Could not generate public URL for uploaded file');
+        }
+
+        // Fix URL structure if needed :cite[4]
+        let publicUrl = urlData.publicUrl;
+        if (publicUrl.includes('/render/image/')) {
+            publicUrl = publicUrl.replace('/render/image/', '/object/');
         }
 
         return publicUrl;
     };
-    
+
+    // Utility to extract file path from URL for deletion
+    const extractFilePathFromUrl = (url: string): string | null => {
+        try {
+            // Extract path from Supabase storage URL
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split('/');
+            const bucketIndex = pathParts.indexOf('public');
+            if (bucketIndex !== -1 && pathParts.length > bucketIndex + 1) {
+                return pathParts.slice(bucketIndex + 1).join('/');
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    };
+
     // --- Hero Slide Handlers ---
     const handleSlideChange = (index: number, field: keyof HeroSlide, value: string) => {
         const newSlides = [...heroSlides];
@@ -142,10 +174,12 @@ const SiteSettingsPage: React.FC = () => {
         const tempUrl = URL.createObjectURL(file);
         handleSlideChange(index, 'imageUrl', tempUrl);
 
-        const filePath = `${STORAGE_CONFIG.HERO_SLIDES_PATH}/${Date.now()}-${file.name}`;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${STORAGE_CONFIG.HERO_SLIDES_PATH}/${fileName}`;
         
         try {
-            setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
+            setUploadProgress(prev => ({ ...prev, [uploadKey]: 50 }));
 
             const publicUrl = await uploadFileToSupabase(file, filePath);
             
@@ -175,11 +209,20 @@ const SiteSettingsPage: React.FC = () => {
     const removeSlide = async (index: number) => {
         const slide = heroSlides[index];
         if (slide.imageUrl && slide.imageUrl !== PLACEHOLDER_IMAGE_URL) {
-            // Extract file path from URL for potential cleanup
+            // Extract file path and delete from storage
             try {
-                // Optional: Add logic to delete file from storage when slide is removed
-                // const filePath = extractFilePathFromUrl(slide.imageUrl);
-                // await supabase.storage.from(STORAGE_CONFIG.BUCKET_NAME).remove([filePath]);
+                const filePath = extractFilePathFromUrl(slide.imageUrl);
+                if (filePath) {
+                    const { error } = await supabase.storage
+                        .from(STORAGE_CONFIG.BUCKET_NAME)
+                        .remove([filePath]);
+                    
+                    if (error) {
+                        console.warn('Failed to delete image from storage:', error);
+                    } else {
+                        showToast('Slide image deleted from storage', 'success');
+                    }
+                }
             } catch (error) {
                 console.warn('Failed to delete image from storage:', error);
             }
@@ -211,10 +254,12 @@ const SiteSettingsPage: React.FC = () => {
         const tempUrl = URL.createObjectURL(file);
         handleTeamMemberChange(index, 'imageUrl', tempUrl);
 
-        const filePath = `${STORAGE_CONFIG.TEAM_IMAGES_PATH}/${Date.now()}-${file.name}`;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${STORAGE_CONFIG.TEAM_IMAGES_PATH}/${fileName}`;
         
         try {
-            setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
+            setUploadProgress(prev => ({ ...prev, [uploadKey]: 50 }));
 
             const publicUrl = await uploadFileToSupabase(file, filePath);
 
@@ -242,21 +287,38 @@ const SiteSettingsPage: React.FC = () => {
             role: '', 
             imageUrl: '', 
             bio: '', 
-            social: { twitter: '#', whatsapp: '#', instagram: '#' } 
+            social: { twitter: '', whatsapp: '', instagram: '' } 
         }]);
     };
 
     const removeTeamMember = async (index: number) => {
         const member = teamMembers[index];
         if (member.imageUrl && member.imageUrl !== PLACEHOLDER_IMAGE_URL) {
-            // Optional: Add storage cleanup logic here
+            // Extract file path and delete from storage
+            try {
+                const filePath = extractFilePathFromUrl(member.imageUrl);
+                if (filePath) {
+                    const { error } = await supabase.storage
+                        .from(STORAGE_CONFIG.BUCKET_NAME)
+                        .remove([filePath]);
+                    
+                    if (error) {
+                        console.warn('Failed to delete team member image from storage:', error);
+                    } else {
+                        showToast('Team member image deleted from storage', 'success');
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to delete team member image from storage:', error);
+            }
         }
         setTeamMembers(teamMembers.filter((_, i) => i !== index));
     };
 
     // Utility function to check if URL is from Supabase storage
     const isSupabaseUrl = (url: string): boolean => {
-        return url.includes('supabase.co/storage/v1/object/public/');
+        return url.includes('supabase.co/storage/v1/object/public/') || 
+               url.includes('supabase.co/storage/v1/render/image/public/');
     };
 
     if (loading) return (
